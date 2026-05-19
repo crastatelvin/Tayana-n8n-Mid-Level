@@ -1,0 +1,457 @@
+{
+  "name": "Accounts Receivable AI Caller Assessment",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "retell-post-call",
+        "options": {}
+      },
+      "id": "d455e0b4-8ea9-439c-bd6e-af63592054db",
+      "name": "Webhook - Retell Post Call",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [-320, -80],
+      "webhookId": "7e09e3fa-f8a1-47a9-a1c4-e53d7e480974"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT * FROM ar_customers \nWHERE phone = '{{ $json.body.phone_number }}' \n  AND status = 'active' \nLIMIT 1;",
+        "options": {}
+      },
+      "id": "99182915-a1ec-4b2f-a01f-6e9b2d114692",
+      "name": "Get row(s)",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [-144, -208]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Normalizing and mapping PostgreSQL customer variables\nconst customer = $input.item.json;\nreturn {\n customer_id: customer.id,\n company_name: customer.company_name?.trim() || \"Unknown\",\n account_balance: parseFloat(customer.balance || 0)\n};"
+      },
+      "id": "ad5dbd05-e90f-4531-95f1-20a115e9f692",
+      "name": "Code in JavaScript5",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [48, -208]
+    },
+    {
+      "parameters": {
+        "mode": "combine",
+        "combineBy": "combineAll",
+        "options": {}
+      },
+      "id": "06ca3522-3da6-4dcd-8b0a-4546a3f587ed",
+      "name": "Merge",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3,
+      "position": [224, -80]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Clean call details and normalize important identifiers\nconst data = $input.item.json;\nreturn {\n ...data,\n call_status: data.status ? data.status.toLowerCase().trim() : 'unknown',\n processed_at: new Date().toISOString()\n};"
+      },
+      "id": "3285e353-b699-4ea4-89c8-787897570f91",
+      "name": "Code - Clean Cell Data",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [400, -80]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://webhook.site/f5ad937d-9d20-49a3-96a7-facbdadfc336/api/invoice",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Cookie",
+              "value": "YOUR_COOKIE_HERE"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "CustomerID",
+              "value": "={{ $json.customer_id }}"
+            },
+            {
+              "name": "CallStatus",
+              "value": "={{ $json.call_status }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "a1aeeb13-b371-44f5-9425-098f81c0c7c3",
+      "name": "Acu - Invoice (Hard Cookie)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [576, -80],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://webhook.site/f5ad937d-9d20-49a3-96a7-facbdadfc336/api/auth/login",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "name",
+              "value": "YOUR_USERNAME"
+            },
+            {
+              "name": "password",
+              "value": "YOUR_PASSWORD"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "27602f02-0d9e-40ea-8da1-6053b7ca04fc",
+      "name": "Acu - Login (If Hard Cookie Fails)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [816, -80]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Extract fresh session cookie from login token response headers \nconst loginData = $input.item.json;\nreturn {\n ...$node[\"Code - Clean Cell Data\"].json,\n session_cookie: loginData.headers?.['set-cookie'] || 'fallback-cookie'\n};"
+      },
+      "id": "b3d0b9b5-a9c6-456e-9bd8-61c86fda093a",
+      "name": "Code in JavaScript3",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1024, -80]
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "YOUR_SPREADSHEET_ID",
+          "mode": "list",
+          "cachedResultName": "AR Workflow Logs",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/YOUR_SPREADSHEET_ID/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Sheet1",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/YOUR_SPREADSHEET_ID/edit#gid=0"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "EventID": "={{ $('Webhook - Retell Post Call').item.json.body.event_id }}",
+            "CustomerID": "={{ $('Get row(s)').item.json.id }}",
+            "Status": "={{ $('Webhook - Retell Post Call').item.json.body.status }}",
+            "Balance": "={{ $('Get row(s)').item.json.balance }}",
+            "ProcessedAt": "={{ $('Code - Clean Cell Data').item.json.processed_at }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "EventID",
+              "displayName": "EventID",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "CustomerID",
+              "displayName": "CustomerID",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Status",
+              "displayName": "Status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Balance",
+              "displayName": "Balance",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "ProcessedAt",
+              "displayName": "ProcessedAt",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "ed3da7dc-e6a4-43a9-82f2-018cbefcdf75",
+      "name": "Insert row",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [1216, -80]
+    },
+    {
+      "parameters": {
+        "method": "PUT",
+        "url": "https://webhook.site/f5ad937d-9d20-49a3-96a7-facbdadfc336/api/invoice/update",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Cookie",
+              "value": "={{ $json.session_cookie }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "Status",
+              "value": "Synced"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "c3df7ec4-96a4-4904-84d1-fc0b33c9851d",
+      "name": "Acu - Invoice (Hard Cookie)1",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1424, -80]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 1
+          },
+          "conditions": [
+            {
+              "id": "a908a70c-cf2b-4b13-91b5-82df7ef46995",
+              "leftValue": "={{ $json.status }}",
+              "rightValue": "completed",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              },
+              "combinator": "and"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "720d0e25-9ba8-47f8-a3f7-9b0dc2f89881",
+      "name": "If",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [-144, 192]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Normalize data for the third-party portal reporting route\nreturn {\n portal_event: $input.item.json.event_id,\n is_valid: true,\n timestamp: new Date().toISOString()\n};"
+      },
+      "id": "74ddfde2-b046-4c7d-88d6-22266eae7b10",
+      "name": "Code in JavaScript1",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [48, 176]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://webhook.site/f5ad937d-9d20-49a3-96a7-facbdadfc336/v1/events",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "eventId",
+              "value": "={{ $json.portal_event }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "9dcea05d-6b45-4ef0-985b-0825914a07dc",
+      "name": "HTTP Request1",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [224, 176]
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Webhook - Retell Post Call": {
+      "main": [
+        [
+          {
+            "node": "Get row(s)",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "If",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get row(s)": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript5",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript5": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge": {
+      "main": [
+        [
+          {
+            "node": "Code - Clean Cell Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code - Clean Cell Data": {
+      "main": [
+        [
+          {
+            "node": "Acu - Invoice (Hard Cookie)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Acu - Invoice (Hard Cookie)": {
+      "main": [
+        [
+          {
+            "node": "Insert row",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Acu - Login (If Hard Cookie Fails)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Acu - Login (If Hard Cookie Fails)": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript3": {
+      "main": [
+        [
+          {
+            "node": "Insert row",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Insert row": {
+      "main": [
+        [
+          {
+            "node": "Acu - Invoice (Hard Cookie)1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript1": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "f89fb59c-6be4-4cc1-89dc-b870634b4e4d",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "a90343fa43e1bff8f27b82db8d1553e8d27a1fc9a77d116f396231b4064d5a85"
+  },
+  "id": "AEMqT4UAydeRLs3y",
+  "tags": []
+}
