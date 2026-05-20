@@ -1,0 +1,519 @@
+{
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "hours"
+            }
+          ]
+        }
+      },
+      "id": "e8d586f1-634d-4639-9b61-966c07866d23",
+      "name": "Schedule Trigger",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1,
+      "position": [
+        -592,
+        -112
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT * FROM candidates WHERE processed = false LIMIT 50;",
+        "options": {}
+      },
+      "id": "b3032f31-8780-4f9f-96ca-a39303eceebe",
+      "name": "Read Candidates",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [
+        -336,
+        -112
+      ]
+    },
+    {
+      "parameters": {
+        "batchSize": 1,
+        "options": {}
+      },
+      "id": "d2ae8043-5b5f-4f9b-bd08-24e80c0ae89f",
+      "name": "Split In Batches",
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 1,
+      "position": [
+        -80,
+        -112
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{$json[\"profile_url\"]}}",
+              "operation": "isNotEmpty"
+            },
+            {
+              "value1": "={{$json[\"record_id\"]}}",
+              "operation": "isNotEmpty"
+            }
+          ]
+        }
+      },
+      "id": "546c40cb-d076-4b82-ac9c-24a6946e4dd1",
+      "name": "Validate Input",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        160,
+        -112
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT * FROM workflow_logs WHERE record_id='{{$json[\"record_id\"]}}' AND status='SUCCESS';",
+        "options": {}
+      },
+      "id": "2dc83efd-3d84-4e75-8dc2-b7d2cfbb5b8d",
+      "name": "Duplicate Check",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [
+        416,
+        -112
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "number": [
+            {
+              "value1": "={{$items().length}}",
+              "operation": "equal"
+            }
+          ]
+        }
+      },
+      "id": "0cac2740-d5ba-4092-adda-df74c0a3e9a1",
+      "name": "IF Not Duplicate",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        672,
+        -112
+      ]
+    },
+    {
+      "parameters": {
+        "url": "https://jsonplaceholder.typicode.com/users/1",
+        "options": {}
+      },
+      "id": "a6e4c040-b71e-4602-8071-bde276fb9c95",
+      "name": "LinkedIn Enrichment API",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [
+        912,
+        -112
+      ]
+    },
+    {
+      "parameters": {
+        "amount": 5,
+        "unit": "seconds"
+      },
+      "id": "bacb5cc9-795f-4bf6-a322-279b3d821f35",
+      "name": "Wait 5 Seconds",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1,
+      "position": [
+        1184,
+        -112
+      ],
+      "webhookId": "be87757b-91e5-46b8-99c5-8e0871414b6d"
+    },
+    {
+      "parameters": {
+        "functionCode": "// Parse the JSON string directly from the AI Agent's output\nconst response = JSON.parse($json.output);\n\nreturn [{\n  json: {\n    // 💡 Pull tracking data from the initial database read node\n    record_id: $('Read Candidates').item.json.record_id, \n    profile_url: $('Read Candidates').item.json.profile_url,\n    candidate_name: $('Read Candidates').item.json.candidate_name, \n    \n    // Extract the evaluation pieces Gemini generated\n    qualification_status: response.qualification_status || 'Review',\n    score: response.score || 70,\n    recommendation: response.recommendation || 'Needs manual review',\n    processed_at: new Date().toISOString()\n  }\n}];"
+      },
+      "id": "21c6f7de-f37a-4a20-8fc1-a94fae888100",
+      "name": "Transform Output",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [
+        2032,
+        -112
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "YOUR_SPREADSHEET_ID",
+          "mode": "list",
+          "cachedResultName": "Qualified Candidates",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/YOUR_SPREADSHEET_ID/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Sheet1",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/YOUR_SPREADSHEET_ID/edit#gid=0"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "record_id": "={{ $json.record_id }}",
+            "qualification_status": "={{ $json.qualification_status }}",
+            "recommendation": "={{ $json.recommendation }}",
+            "processed_at": "={{ $json.processed_at }}",
+            "score": "={{ $json.score }}",
+            "candidate_name": "={{ $json.profile_url }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "record_id",
+              "displayName": "record_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "candidate_name",
+              "displayName": "candidate_name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "email",
+              "displayName": "email",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "skills",
+              "displayName": "skills",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "experience",
+              "displayName": "experience",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "qualification_status",
+              "displayName": "qualification_status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "score",
+              "displayName": "score",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "recommendation",
+              "displayName": "recommendation",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "processed_at",
+              "displayName": "processed_at",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "a8c71821-6398-479c-947b-24c4f8bca077",
+      "name": "Save To Google Sheets",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4,
+      "position": [
+        2288,
+        -112
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE candidates SET processed=true, status='qualified' WHERE record_id='{{$json[\"record_id\"]}}';",
+        "options": {}
+      },
+      "id": "84bb2f60-738e-4fdb-9b82-4ef358eeeaaa",
+      "name": "Update Candidate Status",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [
+        2528,
+        -112
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO workflow_logs(record_id, status, message) \nVALUES('{{ $('Transform Output').item.json.record_id }}', 'SUCCESS', 'Candidate processed successfully');",
+        "options": {}
+      },
+      "id": "241e2a1d-7140-4867-abfb-fc277f7f5a9d",
+      "name": "Success Log",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [
+        2784,
+        -112
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://hooks.slack.com/services/YOUR_SLACK_WEBHOOK_URL",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"text\": \"*New Candidate Evaluated!*\\n*Name:* {{ $('Transform Output').item.json.candidate_name }}\\n*Status:* {{ $('Transform Output').item.json.qualification_status }}\\n*Score:* {{ $('Transform Output').item.json.score }}/100\\n*Recommendation:* {{ $('Transform Output').item.json.recommendation }}\"\n}",
+        "options": {}
+      },
+      "id": "8ebc8feb-dc76-4c0b-a8ab-a5d22e7e0db6",
+      "name": "Slack Notification",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [
+        3040,
+        -112
+      ]
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=You are an expert HR screening assistant. Evaluate the following candidate data:\n\nCandidate Info: {{ JSON.stringify($('LinkedIn Enrichment API').item.json) }}\n\nBased on this data, qualify the candidate and output your final assessment.\n\nCRITICAL REQUIREMENT: You must return ONLY a raw JSON object. Do not wrap your response in markdown text blocks (do not use ```json or ```). \n\nThe output format must strictly follow this JSON schema:\n{\n  \"qualification_status\": \"Qualified\",\n  \"score\": 85,\n  \"recommendation\": \"A brief 1-sentence reason explaining the evaluation status and score.\"\n}",
+        "options": {
+          "systemMessage": "You are an expert HR screening assistant. Evaluate the following candidate data:\n\nCandidate Info: {{ $('LinkedIn Enrichment API').item.json }}\n\nBased on this data, qualify the candidate and output your final assessment.\nCRITICAL REQUIREMENT: You must return ONLY a raw JSON object. Do not wrap your response in markdown text blocks (do not use ```json). \n\nThe output format must strictly follow this JSON schema:\n{\n  \"qualification_status\": \"Qualified\" or \"Disqualified\" or \"Review\",\n  \"score\": (a number between 0 and 100),\n  \"recommendation\": \"A brief 1-sentence reason explaining the score\"\n}"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        1536,
+        -112
+      ],
+      "id": "4e181e30-5d27-4f88-9394-d5a11d4ca99b",
+      "name": "AI Agent"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1.1,
+      "position": [
+        1488,
+        96
+      ],
+      "id": "ab5dd8db-696e-4a2f-b80a-c5957244cf57",
+      "name": "Google Gemini Chat Model"
+    }
+  ],
+  "connections": {
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "Read Candidates",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read Candidates": {
+      "main": [
+        [
+          {
+            "node": "Split In Batches",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Split In Batches": {
+      "main": [
+        [
+          {
+            "node": "Validate Input",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Input": {
+      "main": [
+        [],
+        [
+          {
+            "node": "Duplicate Check",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Duplicate Check": {
+      "main": [
+        [
+          {
+            "node": "IF Not Duplicate",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF Not Duplicate": {
+      "main": [
+        [],
+        [
+          {
+            "node": "LinkedIn Enrichment API",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "LinkedIn Enrichment API": {
+      "main": [
+        [
+          {
+            "node": "Wait 5 Seconds",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait 5 Seconds": {
+      "main": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Transform Output": {
+      "main": [
+        [
+          {
+            "node": "Save To Google Sheets",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Save To Google Sheets": {
+      "main": [
+        [
+          {
+            "node": "Update Candidate Status",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update Candidate Status": {
+      "main": [
+        [
+          {
+            "node": "Success Log",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Success Log": {
+      "main": [
+        [
+          {
+            "node": "Slack Notification",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent": {
+      "main": [
+        [
+          {
+            "node": "Transform Output",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Gemini Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "a90343fa43e1bff8f27b82db8d1553e8d27a1fc9a77d116f396231b4064d5a85"
+  }
+}
