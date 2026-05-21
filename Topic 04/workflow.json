@@ -1,0 +1,352 @@
+{
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "6c58dbf6-cda9-4c66-a0c6-56f9c6f3e681",
+      "name": "When clicking 'Execute workflow'",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        -592,
+        32
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT record_id, profile_url, status FROM candidates WHERE status = 'new' LIMIT 10;",
+        "options": {}
+      },
+      "id": "4c6da464-384c-47e8-aecf-0bdbb7040537",
+      "name": "Read New Candidates",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [
+        -336,
+        32
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "703961e2-703c-4b10-8640-767d63656882",
+              "leftValue": "",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "equals",
+                "name": "filter.operator.equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "96d4975c-674c-486c-b199-7d7f1b7a7b94",
+      "name": "Validate Input Data",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        -96,
+        32
+      ]
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "id": "62daa851-f93d-45db-bfd3-7412116175e6",
+      "name": "Loop Over Candidates",
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        160,
+        -96
+      ]
+    },
+    {
+      "parameters": {
+        "url": "=https://httpbin.org/get?url={{ encodeURIComponent($json.profile_url) }}&status=mock_enriched",
+        "options": {}
+      },
+      "id": "96fde399-9ae1-462c-b2ed-2fd32a01c994",
+      "name": "Enrich via External API",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        416,
+        -96
+      ]
+    },
+    {
+      "parameters": {
+        "amount": 2
+      },
+      "id": "ed35d1c7-cb5e-442d-9b96-56203f0e927c",
+      "name": "Rate Control (Wait)",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        672,
+        -96
+      ],
+      "webhookId": "40093043-0fc1-4506-8c89-f8979958ef97"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Map over all incoming items safely using n8n's input structure\nreturn $input.all().map(item => {\n  // Extract the profile URL from httpbin's nested 'args' object\n  const rawUrl = item.json.args?.url || '';\n  \n  // Standardize the URL (strip trailing slashes, tracking parameters, lowercase)\n  const normalizedUrl = rawUrl.trim().toLowerCase().replace(/\\/$/, '').split('?');\n  \n  return {\n    json: {\n      // Keep any existing data fields\n      ...item.json,\n      // Add the cleaned fields required by the assessment\n      profile_url: rawUrl,\n      normalized_url: normalizedUrl,\n      status: 'normalized',\n      processed_at: new Date().toISOString()\n    }\n  };\n});"
+      },
+      "id": "b57a4b00-e6a9-4d53-928f-7031a465b8b8",
+      "name": "Normalize Data",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        912,
+        -96
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "appendOrUpdate",
+        "documentId": {
+          "__rl": true,
+          "value": "YOUR_SPREADSHEET_ID",
+          "mode": "list",
+          "cachedResultName": "Qualified Leads",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/YOUR_SPREADSHEET_ID/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 1551314207,
+          "mode": "list",
+          "cachedResultName": "check is this correct\n\nnow give all details like...",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/YOUR_SPREADSHEET_ID/edit#gid=1551314207"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "record_id": "={{ $json.record_id }}",
+            "profile_url": "={{ $json.profile_url }}",
+            "normalized_url": "={{ $json.normalized_url }}",
+            "status": "={{ $json.qualified }}",
+            "processed_at": "={{ $json.processed_at }}"
+          },
+          "matchingColumns": [
+            "normalized_url"
+          ],
+          "schema": [
+            {
+              "id": "record_id",
+              "displayName": "record_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "profile_url",
+              "displayName": "profile_url",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "normalized_url",
+              "displayName": "normalized_url",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "status",
+              "displayName": "status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "processed_at",
+              "displayName": "processed_at",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "4ef4ccaf-3725-41c3-ab14-f79cace97569",
+      "name": "Upsert to Google Sheets",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4,
+      "position": [
+        1168,
+        -96
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE candidates SET status = 'processed' WHERE record_id = '{{ $json.record_id }}';",
+        "options": {}
+      },
+      "id": "8832393a-a5bd-42bb-8df0-2715383cd9d8",
+      "name": "Update Internal State",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [
+        1424,
+        -96
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE candidates SET status = 'failed_validation' WHERE record_id = '{{ $json.record_id }}';\n",
+        "options": {}
+      },
+      "id": "88322d6e-9466-4770-a9c1-6ec3444fbad8",
+      "name": "Log Invalid Input",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [
+        160,
+        176
+      ]
+    }
+  ],
+  "connections": {
+    "When clicking 'Execute workflow'": {
+      "main": [
+        [
+          {
+            "node": "Read New Candidates",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read New Candidates": {
+      "main": [
+        [
+          {
+            "node": "Validate Input Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Input Data": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Candidates",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Log Invalid Input",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Loop Over Candidates": {
+      "main": [
+        [],
+        [
+          {
+            "node": "Enrich via External API",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Enrich via External API": {
+      "main": [
+        [
+          {
+            "node": "Rate Control (Wait)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Rate Control (Wait)": {
+      "main": [
+        [
+          {
+            "node": "Normalize Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Normalize Data": {
+      "main": [
+        [
+          {
+            "node": "Upsert to Google Sheets",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Upsert to Google Sheets": {
+      "main": [
+        [
+          {
+            "node": "Update Internal State",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update Internal State": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Candidates",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "a90343fa43e1bff8f27b82db8d1553e8d27a1fc9a77d116f396231b4064d5a85"
+  }
+}
