@@ -1,0 +1,1361 @@
+{
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "9fe28142-9f8b-4f1a-993d-aff2b2263922",
+      "name": "Manual Trigger",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        -2304,
+        -144
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT *\nFROM competitors_source\nWHERE status = 'PENDING'\nLIMIT 100;",
+        "options": {}
+      },
+      "id": "47d9f9be-6ec3-4e75-8e99-fa10e05800a3",
+      "name": "Read Source Records",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        -2080,
+        -144
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{$json.company_name}}",
+              "operation": "isNotEmpty"
+            },
+            {
+              "value1": "={{$json.website}}",
+              "operation": "isNotEmpty"
+            }
+          ],
+          "combinator": "and",
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 1
+          }
+        },
+        "options": {}
+      },
+      "id": "a47fca04-3831-408e-9017-57af663b504b",
+      "name": "Validate Required Fields",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        -1856,
+        -144
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO workflow_logs\n(workflow_run_id, company_name, status, message)\nVALUES\n(\n  '{{ $execution.id }}',\n  '{{ $json.company_name }}',\n  'INVALID',\n  'Missing required fields'\n);",
+        "options": {}
+      },
+      "id": "d8c22086-0d3d-4353-9119-b900bc28d4e4",
+      "name": "Log Invalid Record",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        -1600,
+        80
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "function normalizeDomain(url) {\n  if (!url) return null;\n\n  return url\n    .replace('https://', '')\n    .replace('http://', '')\n    .replace('www.', '')\n    .split('/')[0]\n    .toLowerCase()\n    .trim();\n}\n\nreturn items.map(item => {\n  item.json.normalized_domain = normalizeDomain(item.json.website);\n\n  item.json.company_name = item.json.company_name.trim();\n\n  return item;\n});"
+      },
+      "id": "8bb3656e-b0ff-4f12-918b-fd28b96ac547",
+      "name": "Normalize Fields",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1600,
+        -224
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT *\nFROM competitors_processed\nWHERE normalized_domain = '{{ $json.normalized_domain }}'\nLIMIT 1;",
+        "options": {}
+      },
+      "id": "2aa608d5-94fe-4eac-bc30-3c60bc7542ef",
+      "name": "Duplicate Check",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        -1360,
+        -224
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "number": [
+            {
+              "value1": "={{$items().length}}",
+              "operation": "larger",
+              "value2": 0
+            }
+          ],
+          "combinator": "and",
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 1
+          }
+        },
+        "options": {}
+      },
+      "id": "8bb2de0b-22b5-45fc-bcb3-f18b3d948b01",
+      "name": "Duplicate Exists?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        -1120,
+        -224
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const existing = items.json;\nconst incoming = $input.first().json;\n\nreturn [{\n  json: {\n    // Make sure the ID from the original source record is passed along!\n    id: incoming.id || existing.id, \n    company_name: incoming.company_name || existing.company_name,\n    website: incoming.website || existing.website,\n    linkedin_url: incoming.linkedin_url || existing.linkedin_url,\n    employee_count: incoming.employee_count || existing.employee_count,\n    industry: incoming.industry || existing.industry,\n    country: incoming.country || existing.country,\n    normalized_domain: incoming.normalized_domain\n  }\n}];"
+      },
+      "id": "b5cf469b-1938-4c63-8b18-26528b52c79d",
+      "name": "Merge Duplicate Records",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -880,
+        -352
+      ]
+    },
+    {
+      "parameters": {
+        "batchSize": 5,
+        "options": {}
+      },
+      "id": "93f4f022-fd71-4f4b-9e7b-df95d50ac62b",
+      "name": "Split In Batches",
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        -848,
+        -128
+      ]
+    },
+    {
+      "parameters": {
+        "amount": 2
+      },
+      "id": "c5ca33b5-4af8-4e10-96cb-67f1230f0dcf",
+      "name": "Wait Rate Limit",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        -640,
+        -112
+      ],
+      "webhookId": "d1eed067-28d9-47e1-a673-8cabe7b16593"
+    },
+    {
+      "parameters": {
+        "jsCode": "return items.map(item => {\n  let agentData = {};\n  \n  // Extract and parse the string trapped inside item.json.output\n  if (item.json.output) {\n    try {\n      // If it's a string, parse it into an object\n      agentData = typeof item.json.output === 'string' \n        ? JSON.parse(item.json.output.trim()) \n        : item.json.output;\n    } catch (e) {\n      console.error(\"Failed to parse agent output string\", e);\n    }\n  }\n\n  // Fallback to top level fields if output parsing failed\n  const finalSource = Object.keys(agentData).length > 0 ? agentData : item.json;\n\n  return {\n    json: {\n      // Use the original database ID from the batch node context to keep your status update happy\n      id: $('Split In Batches').item.json.id || finalSource.id || null,\n      company_name: finalSource.company_name || null,\n      website: finalSource.website || null,\n      normalized_domain: finalSource.normalized_domain || null,\n      linkedin_url: finalSource.linkedin_url || null,\n      employee_count: finalSource.employee_count || null,\n      industry: finalSource.industry || null,\n      country: finalSource.country || null,\n      source: 'SRP-2001',\n      status: 'PROCESSED',\n      processed_at: new Date().toISOString()\n    }\n  };\n});"
+      },
+      "id": "a5f85482-49ae-45d6-99c2-6efda6a06c33",
+      "name": "Final Reshape",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        352,
+        -128
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "YOUR_SPREADSHEET_ID",
+          "mode": "list",
+          "cachedResultName": "Competitor Output",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/YOUR_SPREADSHEET_ID/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Sheet1",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/YOUR_SPREADSHEET_ID/edit#gid=0"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "company_name": "={{$json.company_name}}",
+            "website": "={{$json.website}}",
+            "normalized_domain": "={{$json.normalized_domain}}",
+            "linkedin_url": "={{$json.linkedin_url}}",
+            "employee_count": "={{$json.employee_count}}",
+            "industry": "={{$json.industry}}",
+            "country": "={{$json.country}}",
+            "source": "={{$json.source}}",
+            "status": "={{$json.status}}",
+            "processed_at": "={{$json.processed_at}}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "company_name",
+              "displayName": "company_name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "website",
+              "displayName": "website",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "normalized_domain",
+              "displayName": "normalized_domain",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "linkedin_url",
+              "displayName": "linkedin_url",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "employee_count",
+              "displayName": "employee_count",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "industry",
+              "displayName": "industry",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "country",
+              "displayName": "country",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "source",
+              "displayName": "source",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "status",
+              "displayName": "status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "processed_at",
+              "displayName": "processed_at",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "0e34534d-a998-417b-8cc4-0de82a96408b",
+      "name": "Save To Google Sheets",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        560,
+        -128
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO competitors_processed\n(\n normalized_domain,\n company_name,\n website,\n linkedin_url,\n employee_count,\n industry,\n country,\n enrichment_source\n)\nVALUES\n(\n '{{ $json.normalized_domain }}',\n '{{ $json.company_name }}',\n '{{ $json.website }}',\n '{{ $json.linkedin_url }}',\n '{{ $json.employee_count }}',\n '{{ $json.industry }}',\n '{{ $json.country }}',\n 'SRP-2001'\n)\nON CONFLICT (normalized_domain)\nDO NOTHING;",
+        "options": {}
+      },
+      "id": "131f1f57-695c-4631-b7e0-94a5df124f30",
+      "name": "Save Processed Record",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        800,
+        -128
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE competitors_source\nSET status = 'PROCESSED'\nWHERE id = {{ $('Split In Batches').item.json.id }};",
+        "options": {}
+      },
+      "id": "46e1fbb5-4f2e-4988-9031-d661f0a1bb71",
+      "name": "Update Source Status",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1040,
+        -128
+      ]
+    },
+    {
+      "parameters": {
+        "authentication": "oAuth2",
+        "select": "channel",
+        "channelId": {
+          "__rl": true,
+          "value": "C0B2K5H9Q87",
+          "mode": "list",
+          "cachedResultName": "all-infinity"
+        },
+        "text": "=Competitor processed successfully: \nCompany: {{$('Final Reshape').first().json.company_name}} \nIndustry: {{$('Final Reshape').first().json.industry}} \nEmployees: {{$('Final Reshape').first().json.employee_count}}",
+        "otherOptions": {}
+      },
+      "id": "a4589d9a-be2d-430e-8bc3-d665042e60c9",
+      "name": "Slack Notification",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.3,
+      "position": [
+        1280,
+        -128
+      ],
+      "webhookId": "8158d3dd-3b83-4df0-8eb0-488255dff212"
+    },
+    {
+      "parameters": {
+        "url": "https://serpapi.com/search.json",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "q",
+              "value": "={{$json.company_name}}"
+            },
+            {
+              "name": "engine",
+              "value": "google"
+            },
+            {
+              "name": "api_key",
+              "value": "YOUR_SERPAPI_API_KEY"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "1f7378d7-edde-4c30-9d53-30abbf115291",
+      "name": "SerpApi Company Search",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -400,
+        -128
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "Run actor and get dataset",
+        "actorId": {
+          "__rl": true,
+          "mode": "list",
+          "value": ""
+        }
+      },
+      "type": "@apify/n8n-nodes-apify.apify",
+      "typeVersion": 1,
+      "position": [
+        -208,
+        -128
+      ],
+      "id": "6be8b7f5-fda8-4458-af5b-1c64dfe9a854",
+      "name": "Run an Actor and get dataset"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=You are an expert data normalization and enrichment assistant. Your sole purpose is to process raw company data scraped from search engines and LinkedIn, clean it, and format it into a standardized JSON structure.\n\n### STRICT OUTPUT RULES:\n- Output raw, valid JSON only.\n- Do NOT wrap your response in markdown code blocks (e.g., do NOT use ```json ... ```).\n- Do NOT include any conversational text, explanations, or notes before or after the JSON.\n- Retain the exact source database ID provided in the input as \"id\".\n\n### TARGET JSON STRUCTURE:\nYou must return a single flat JSON object containing exactly these fields:\n{\n  \"id\": <retain_original_input_id_integer>,\n  \"company_name\": \"Cleaned, properly capitalized company name string\",\n  \"website\": \"Cleaned, lowercase primary website URL (e.g., [https://example.com](https://example.com))\",\n  \"normalized_domain\": \"example.com\",\n  \"linkedin_url\": \"Cleaned, standard corporate LinkedIn URL\",\n  \"employee_count\": <integer_or_null>,\n  \"industry\": \"Standardized B2B industry category (e.g., 'Software Development', 'Financial Services', 'Healthcare')\",\n  \"country\": \"Standardized ISO 2-letter country code or full name\"\n}\n\n### PROCESSING LOGIC:\n1. ID Preservation: Locate the input database 'id' field and map it directly back out. Do not lose or change this.\n2. Data Merging: Look at the data provided from both the initial record, the Google Search data, and the Apify scrape data. Merge them intelligently, prioritizing the most complete and recent values.\n3. Industry Standardization: Standardize messy or highly specific industry strings into high-level recognizable industry fields.\n4. Clean Text: Strip trailing spaces, tracking parameters from URLs, and weird symbols from company names.\n\n...\nInput Data to process:\n{{ JSON.stringify($json) }}",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        16,
+        -128
+      ],
+      "id": "1399ecd8-834d-4709-8416-e416ddc3a58c",
+      "name": "AI Agent"
+    },
+    {
+      "parameters": {
+        "modelName": "models/gemini-3.1-flash-lite",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1.1,
+      "position": [
+        16,
+        48
+      ],
+      "id": "0797f314-1734-4411-adec-3c99c4850c8e",
+      "name": "Google Gemini Chat Model"
+    }
+  ],
+  "connections": {
+    "Manual Trigger": {
+      "main": [
+        [
+          {
+            "node": "Read Source Records",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read Source Records": {
+      "main": [
+        [
+          {
+            "node": "Validate Required Fields",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Required Fields": {
+      "main": [
+        [
+          {
+            "node": "Normalize Fields",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Log Invalid Record",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Normalize Fields": {
+      "main": [
+        [
+          {
+            "node": "Duplicate Check",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Duplicate Check": {
+      "main": [
+        [
+          {
+            "node": "Duplicate Exists?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Duplicate Exists?": {
+      "main": [
+        [
+          {
+            "node": "Merge Duplicate Records",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    },
+    "Merge Duplicate Records": {
+      "main": [
+        [
+          {
+            "node": "Split In Batches",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Split In Batches": {
+      "main": [
+        [],
+        [
+          {
+            "node": "Wait Rate Limit",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait Rate Limit": {
+      "main": [
+        [
+          {
+            "node": "SerpApi Company Search",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Final Reshape": {
+      "main": [
+        [
+          {
+            "node": "Save To Google Sheets",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Save To Google Sheets": {
+      "main": [
+        [
+          {
+            "node": "Save Processed Record",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Save Processed Record": {
+      "main": [
+        [
+          {
+            "node": "Update Source Status",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update Source Status": {
+      "main": [
+        [
+          {
+            "node": "Slack Notification",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "SerpApi Company Search": {
+      "main": [
+        [
+          {
+            "node": "Run an Actor and get dataset",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Run an Actor and get dataset": {
+      "main": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent": {
+      "main": [
+        [
+          {
+            "node": "Final Reshape",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Gemini Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {
+    "SerpApi Company Search": [
+      {
+        "search_metadata": {
+          "id": "6a10299050d43eb4bfa1b015",
+          "status": "Success",
+          "json_endpoint": "https://serpapi.com/searches/FPo1q042kBYvl2_tr7wmIA/6a10299050d43eb4bfa1b015.json",
+          "pixel_position_endpoint": "https://serpapi.com/searches/FPo1q042kBYvl2_tr7wmIA/6a10299050d43eb4bfa1b015.json_with_pixel_position",
+          "created_at": "2026-05-22 10:01:52 UTC",
+          "processed_at": "2026-05-22 10:01:52 UTC",
+          "google_url": "https://www.google.com/search?q=HubSpot&oq=HubSpot&sourceid=chrome&ie=UTF-8",
+          "raw_html_file": "https://serpapi.com/searches/FPo1q042kBYvl2_tr7wmIA/6a10299050d43eb4bfa1b015.html",
+          "total_time_taken": 1.83
+        },
+        "search_parameters": {
+          "engine": "google",
+          "q": "HubSpot",
+          "google_domain": "google.com",
+          "device": "desktop"
+        },
+        "search_information": {
+          "query_displayed": "HubSpot",
+          "total_results": 147,
+          "time_taken_displayed": 0.25,
+          "organic_results_state": "Results for exact spelling"
+        },
+        "ads": [
+          {
+            "position": 1,
+            "block_position": "top",
+            "title": "HubSpot CRM Platform",
+            "link": "https://www.hubspot.com/products/get-started-f049",
+            "displayed_link": "https://www.hubspot.com \u203a demo",
+            "tracking_link": "https://www.google.com/aclk?sa=L&pf=1&ai=DChsSEwjevejx0cyUAxUbI0QIHWsVEFIYACICCAEQAhoCZHo&co=1&ase=2&gclid=EAIaIQobChMI3r3o8dHMlAMVGyNECB1rFRBSEAAYASAAEgLOCPD_BwE&cid=CAASuwHkaOGFoYDXyCRBLW9LDqyIusMH6zxLcDduq-M4t0T5szaSBUOSLNBMZVOSI4-9ztOqNEc6qPk6ZpHjykqHlMMSowtQFgs8M1WpV6eOl93KtoMBjkVMU0CuCOfIxp721eWGRP6zJMZC1ohYntCvkhtDhv07dWyuwglParTHg46LSAz9-G87lKFElHOpCq_87krO5ULceA_GY2KNQ5VhDGz9wdCKaUlDuqNWbktq1QnPmnTDZ7Rx9c2VEr5j&cce=2&category=acrcp_v1_32&sig=AOD64_0d2bmI51TfXw6LZY6JXJ76FHlgyg&q&nis=4&adurl=https://www.hubspot.com/products/get-started-f049?utm_id%3D607212716856%26utm_medium%3Dpaid%26utm_source%3Dgoogle%26utm_term%3Dmarketing_hubspot_EN%26utm_campaign%3DMarketing_MQLs_EN_NAM_NAM_Brand-HubSpot_e_c_campaignid804389993_agid43208773113_google%26utm_content%3D_%26hsa_ver%3D3%26hsa_net%3Dadwords%26hsa_acc%3D2734776884%26hsa_kw%3Dhubspot%26hsa_grp%3D43208773113%26hsa_mt%3De%26hsa_cam%3D804389993%26hsa_ad%3D607212716856%26hsa_tgt%3Dkwd-298569398281%26hsa_src%3Dg%26cq_cmp%3D804389993%26cq_plac%3D%26cq_net%3Dg%26gad_source%3D1%26gad_campaignid%3D804389993%26gbraid%3D0AAAAADP5F9yrijqL3iGUyjH7JWPGLO8FN%26gclid%3DEAIaIQobChMI3r3o8dHMlAMVGyNECB1rFRBSEAAYASAAEgLOCPD_BwE",
+            "description": "Increase Leads \u2014 Learn how to grow your business with a demo of HubSpot's software. Generate leads, close deals, and create remarkable customer experiences. Works With Any Website.",
+            "source": "HubSpot",
+            "sitelinks": [
+              {
+                "title": "CRM for Small Business",
+                "link": "https://www.hubspot.com/products/crm/starter",
+                "snippets": [
+                  "HubSpot's starter customer platform to get your company growing."
+                ]
+              },
+              {
+                "title": "HubSpot Customer Platform",
+                "link": "https://www.hubspot.com/products/get-started-f049",
+                "snippets": [
+                  "See how HubSpot unifies your marketing, sales, and service teams in one platform."
+                ]
+              },
+              {
+                "title": "Pricing Packages",
+                "link": "https://www.hubspot.com/pricing/sales",
+                "snippets": [
+                  "HubSpot has the features your business needs. Compare plans here."
+                ]
+              }
+            ]
+          },
+          {
+            "position": 2,
+            "block_position": "top",
+            "title": "The Agentic CRM - The Future of CRM",
+            "link": "https://www.planhat.com/switch/hubspot",
+            "displayed_link": "https://www.planhat.com",
+            "thumbnail": "https://serpapi.com/searches/6a10299050d43eb4bfa1b015/images/5hZr7_CK007YtHB-C8j7PA.jpeg",
+            "tracking_link": "https://www.google.com/aclk?sa=L&pf=1&ai=DChsSEwjevejx0cyUAxUbI0QIHWsVEFIYACICCAEQCBoCZHo&co=1&ase=2&gclid=EAIaIQobChMI3r3o8dHMlAMVGyNECB1rFRBSEAAYAiADEgI0SvD_BwE&cid=CAASuwHkaOGFoYDXyCRBLW9LDqyIusMH6zxLcDduq-M4t0T5szaSBUOSLNBMZVOSI4-9ztOqNEc6qPk6ZpHjykqHlMMSowtQFgs8M1WpV6eOl93KtoMBjkVMU0CuCOfIxp721eWGRP6zJMZC1ohYntCvkhtDhv07dWyuwglParTHg46LSAz9-G87lKFElHOpCq_87krO5ULceA_GY2KNQ5VhDGz9wdCKaUlDuqNWbktq1QnPmnTDZ7Rx9c2VEr5j&cce=2&category=acrcp_v1_32&sig=AOD64_3_Gg0hYECoj5SP-lplCBvawF3nbA&q=&nis=4&ved=2ahUKEwj47-Px0cyUAxWPJUQIHYTWGEcQh78CegQIDxAB&adurl=https://www.planhat.com/request-a-demo/vs-hubspot%3Futm_term%3Dhubspot%26utm_campaign%3DMF:%2BCRM%26utm_source%3Dadwords%26utm_medium%3Dppc%26hsa_acc%3D2390875428%26hsa_cam%3D22386217565%26hsa_grp%3D180991520319%26hsa_ad%3D761235248108%26hsa_src%3Dg%26hsa_tgt%3Dkwd-6356688152%26hsa_kw%3Dhubspot%26hsa_mt%3De%26hsa_net%3Dadwords%26hsa_ver%3D3%26hstk_creative%3D761235248108%26hstk_campaign%3D22386217565%26hstk_network%3DgoogleAds%26gad_source%3D1%26gad_campaignid%3D22386217565%26gbraid%3D0AAAAADb6pGgRalNWQFj1tbC5C59X6pPUe%26gclid%3DEAIaIQobChMI3r3o8dHMlAMVGyNECB1rFRBSEAAYAiADEgI0SvD_BwE",
+            "description": "Planhat is the leading CRM for modern businesses. Best CRM for Startups \u2013 Scalable CRM built for rapid startup growth. Easy to use. Increase engagement.",
+            "source": "Planhat",
+            "sitelinks": [
+              {
+                "title": "Planhat for Startups and SMB",
+                "link": "https://www.google.com/aclk?sa=L&pf=1&ai=DChsSEwjevejx0cyUAxUbI0QIHWsVEFIYACICCAEQCxoCZHo&co=1&ase=2&gclid=EAIaIQobChMI3r3o8dHMlAMVGyNECB1rFRBSEAAYAiAEEgIxUfD_BwE&cid=CAASuwHkaOGFoYDXyCRBLW9LDqyIusMH6zxLcDduq-M4t0T5szaSBUOSLNBMZVOSI4-9ztOqNEc6qPk6ZpHjykqHlMMSowtQFgs8M1WpV6eOl93KtoMBjkVMU0CuCOfIxp721eWGRP6zJMZC1ohYntCvkhtDhv07dWyuwglParTHg46LSAz9-G87lKFElHOpCq_87krO5ULceA_GY2KNQ5VhDGz9wdCKaUlDuqNWbktq1QnPmnTDZ7Rx9c2VEr5j&cce=2&category=acrcp_v1_32&sig=AOD64_2o7UuM5aZ-NOeDEgY_p27q7ZMEaw&adurl=https://www.planhat.com/request-a-demo/vs-hubspot%3Futm_term%3Dhubspot%26utm_campaign%3DMF:%2BCRM%26utm_source%3Dadwords%26utm_medium%3Dppc%26hsa_acc%3D2390875428%26hsa_cam%3D22386217565%26hsa_grp%3D180991520319%26hsa_ad%3D761235248108%26hsa_src%3Dg%26hsa_tgt%3Dkwd-6356688152%26hsa_kw%3Dhubspot%26hsa_mt%3De%26hsa_net%3Dadwords%26hsa_ver%3D3%26hstk_creative%3D761235248108%26hstk_campaign%3D22386217565%26hstk_network%3DgoogleAds%26gad_source%3D1%26gad_campaignid%3D22386217565%26gbraid%3D0AAAAADb6pGgRalNWQFj1tbC5C59X6pPUe%26gclid%3DEAIaIQobChMI3r3o8dHMlAMVGyNECB1rFRBSEAAYAiAEEgIxUfD_BwE&q="
+              },
+              {
+                "title": "Customers",
+                "link": "https://www.planhat.com/impact-studies"
+              },
+              {
+                "title": "Discover the Agent first CRM",
+                "link": "https://www.google.com/aclk?sa=L&pf=1&ai=DChsSEwjevejx0cyUAxUbI0QIHWsVEFIYACICCAEQDRoCZHo&co=1&ase=2&gclid=EAIaIQobChMI3r3o8dHMlAMVGyNECB1rFRBSEAAYAiAFEgLnYPD_BwE&cid=CAASuwHkaOGFoYDXyCRBLW9LDqyIusMH6zxLcDduq-M4t0T5szaSBUOSLNBMZVOSI4-9ztOqNEc6qPk6ZpHjykqHlMMSowtQFgs8M1WpV6eOl93KtoMBjkVMU0CuCOfIxp721eWGRP6zJMZC1ohYntCvkhtDhv07dWyuwglParTHg46LSAz9-G87lKFElHOpCq_87krO5ULceA_GY2KNQ5VhDGz9wdCKaUlDuqNWbktq1QnPmnTDZ7Rx9c2VEr5j&cce=2&category=acrcp_v1_32&sig=AOD64_0B4W1LFybBKGTeB50aT3uFOuEIew&adurl=https://www.planhat.com/request-a-demo/vs-hubspot%3Futm_term%3Dhubspot%26utm_campaign%3DMF:%2BCRM%26utm_source%3Dadwords%26utm_medium%3Dppc%26hsa_acc%3D2390875428%26hsa_cam%3D22386217565%26hsa_grp%3D180991520319%26hsa_ad%3D761235248108%26hsa_src%3Dg%26hsa_tgt%3Dkwd-6356688152%26hsa_kw%3Dhubspot%26hsa_mt%3De%26hsa_net%3Dadwords%26hsa_ver%3D3%26hstk_creative%3D761235248108%26hstk_campaign%3D22386217565%26hstk_network%3DgoogleAds%26gad_source%3D1%26gad_campaignid%3D22386217565%26gbraid%3D0AAAAADb6pGgRalNWQFj1tbC5C59X6pPUe%26gclid%3DEAIaIQobChMI3r3o8dHMlAMVGyNECB1rFRBSEAAYAiAFEgLnYPD_BwE&q="
+              },
+              {
+                "title": "Customer Success",
+                "link": "https://www.planhat.com/csp"
+              }
+            ]
+          },
+          {
+            "position": 3,
+            "block_position": "top",
+            "title": "monday CRM Is So Much Better - Scale You Business With AI",
+            "link": "https://monday.com/ap/crm/monday-vs-hubspot",
+            "displayed_link": "https://www.monday.com",
+            "thumbnail": "https://serpapi.com/searches/6a10299050d43eb4bfa1b015/images/2PJEc_4f1GGh5KZU3MBQXg.png",
+            "tracking_link": "https://www.google.com/aclk?sa=L&ai=DChsSEwjevejx0cyUAxUbI0QIHWsVEFIYACICCAEQDBoCZHo&co=1&ase=2&gclid=EAIaIQobChMI3r3o8dHMlAMVGyNECB1rFRBSEAAYAyAEEgLiyfD_BwE&cid=CAASuwHkaOGFoYDXyCRBLW9LDqyIusMH6zxLcDduq-M4t0T5szaSBUOSLNBMZVOSI4-9ztOqNEc6qPk6ZpHjykqHlMMSowtQFgs8M1WpV6eOl93KtoMBjkVMU0CuCOfIxp721eWGRP6zJMZC1ohYntCvkhtDhv07dWyuwglParTHg46LSAz9-G87lKFElHOpCq_87krO5ULceA_GY2KNQ5VhDGz9wdCKaUlDuqNWbktq1QnPmnTDZ7Rx9c2VEr5j&cce=2&category=acrcp_v1_32&sig=AOD64_169yZppOQ-XvsvM86pU_rLS2ZyDA&q=&nis=4&ved=2ahUKEwj47-Px0cyUAxWPJUQIHYTWGEcQh78CegQIDRAB&adurl=",
+            "description": "Get started with monday CRM to manage, automate, and centralize the entire...",
+            "source": "monday.com",
+            "sitelinks": [
+              {
+                "title": "monday CRM Pricing",
+                "link": "https://monday.com/crm/pricing"
+              },
+              {
+                "title": "+200 CRM Templates",
+                "link": "https://monday.com/crm/templates"
+              },
+              {
+                "title": "From Pre to Post Sales",
+                "link": "https://www.google.com/aclk?sa=L&ai=DChsSEwjevejx0cyUAxUbI0QIHWsVEFIYACICCAEQDhoCZHo&co=1&ase=2&gclid=EAIaIQobChMI3r3o8dHMlAMVGyNECB1rFRBSEAAYAyAFEgJyfvD_BwE&cid=CAASuwHkaOGFoYDXyCRBLW9LDqyIusMH6zxLcDduq-M4t0T5szaSBUOSLNBMZVOSI4-9ztOqNEc6qPk6ZpHjykqHlMMSowtQFgs8M1WpV6eOl93KtoMBjkVMU0CuCOfIxp721eWGRP6zJMZC1ohYntCvkhtDhv07dWyuwglParTHg46LSAz9-G87lKFElHOpCq_87krO5ULceA_GY2KNQ5VhDGz9wdCKaUlDuqNWbktq1QnPmnTDZ7Rx9c2VEr5j&cce=2&category=acrcp_v1_32&sig=AOD64_2pxRlPJWdjemcLiMVtNj3Z65-_OA&adurl=&q="
+              },
+              {
+                "title": "monday.com Work OS",
+                "link": "https://monday.com/"
+              }
+            ]
+          },
+          {
+            "position": 4,
+            "block_position": "middle",
+            "title": "Book Your HubSpot Demo | See HubSpot in Action",
+            "link": "https://www.hubspot.com/products/get-started-f049",
+            "displayed_link": "https://www.hubspot.com \u203a demo",
+            "tracking_link": "https://www.google.com/aclk?sa=L&ai=DChsSEwjevejx0cyUAxUbI0QIHWsVEFIYACICCAIQARoCZHo&co=1&ase=2&gclid=EAIaIQobChMI3r3o8dHMlAMVGyNECB1rFRBSEAMYASAAEgL7KPD_BwE&cid=CAASuwHkaOGFoYDXyCRBLW9LDqyIusMH6zxLcDduq-M4t0T5szaSBUOSLNBMZVOSI4-9ztOqNEc6qPk6ZpHjykqHlMMSowtQFgs8M1WpV6eOl93KtoMBjkVMU0CuCOfIxp721eWGRP6zJMZC1ohYntCvkhtDhv07dWyuwglParTHg46LSAz9-G87lKFElHOpCq_87krO5ULceA_GY2KNQ5VhDGz9wdCKaUlDuqNWbktq1QnPmnTDZ7Rx9c2VEr5j&cce=2&category=acrcp_v1_32&sig=AOD64_0IuybYp-59C8d1K8l1U5BeiWxSqQ&q&nis=4&adurl",
+            "description": "Your marketing, sales, and service data \u2014 connected, secure, and ready to act on. AI that takes the right action at the right moment - built into your HubSpot tools. Works With Any Website. All-in-One Software. No-Hassle Integrations. Global Support.",
+            "source": "HubSpot",
+            "sitelinks": [
+              {
+                "title": "CRM for Small Business",
+                "link": "https://www.hubspot.com/products/crm/starter"
+              },
+              {
+                "title": "HubSpot CRM Platform",
+                "link": "https://www.hubspot.com/products/get-started-f049"
+              },
+              {
+                "title": "HubSpot Customer Platform",
+                "link": "https://www.google.com/aclk?sa=L&ai=DChsSEwjevejx0cyUAxUbI0QIHWsVEFIYACICCAIQCRoCZHo&co=1&ase=2&gclid=EAIaIQobChMI3r3o8dHMlAMVGyNECB1rFRBSEAMYASADEgJRuvD_BwE&cid=CAASuwHkaOGFoYDXyCRBLW9LDqyIusMH6zxLcDduq-M4t0T5szaSBUOSLNBMZVOSI4-9ztOqNEc6qPk6ZpHjykqHlMMSowtQFgs8M1WpV6eOl93KtoMBjkVMU0CuCOfIxp721eWGRP6zJMZC1ohYntCvkhtDhv07dWyuwglParTHg46LSAz9-G87lKFElHOpCq_87krO5ULceA_GY2KNQ5VhDGz9wdCKaUlDuqNWbktq1QnPmnTDZ7Rx9c2VEr5j&cce=2&category=acrcp_v1_32&sig=AOD64_0_8QxmjnK3lboYM5u2-RSjvXF7Cw&adurl=&q="
+              },
+              {
+                "title": "Pricing Packages",
+                "link": "https://www.hubspot.com/pricing/sales"
+              }
+            ]
+          },
+          {
+            "position": 5,
+            "block_position": "middle",
+            "title": "monday CRM Is So Much Better | The Most Intuitive CRM",
+            "link": "https://monday.com/ap/crm/monday-vs-hubspot",
+            "displayed_link": "https://www.monday.com",
+            "thumbnail": "https://tpc.googlesyndication.com/simgad/15792024722600229471?sqp=-oaymwEKCFwQXCABUAFYAQ&rs=AOga4qn5C5TRkZQDFgorY-zOxDkV_HR43g",
+            "tracking_link": "https://www.google.com/aclk?sa=L&ai=DChsSEwjevejx0cyUAxUbI0QIHWsVEFIYACICCAIQBhoCZHo&co=1&ase=2&gclid=EAIaIQobChMI3r3o8dHMlAMVGyNECB1rFRBSEAMYAiAEEgL8-fD_BwE&cid=CAASuwHkaOGFoYDXyCRBLW9LDqyIusMH6zxLcDduq-M4t0T5szaSBUOSLNBMZVOSI4-9ztOqNEc6qPk6ZpHjykqHlMMSowtQFgs8M1WpV6eOl93KtoMBjkVMU0CuCOfIxp721eWGRP6zJMZC1ohYntCvkhtDhv07dWyuwglParTHg46LSAz9-G87lKFElHOpCq_87krO5ULceA_GY2KNQ5VhDGz9wdCKaUlDuqNWbktq1QnPmnTDZ7Rx9c2VEr5j&cce=2&category=acrcp_v1_32&sig=AOD64_1iXS_iuZJPEsIoCfolF7S79gdyMA&q=&nis=4&ved=2ahUKEwj47-Px0cyUAxWPJUQIHYTWGEcQh78CegUIwwEQAQ&adurl=",
+            "description": "Get started with monday CRM to manage, automate, and centralize the entire...",
+            "source": "monday.com",
+            "sitelinks": [
+              {
+                "title": "monday CRM Pricing",
+                "link": "https://monday.com/crm/pricing"
+              },
+              {
+                "title": "+200 CRM Templates",
+                "link": "https://monday.com/crm/templates"
+              },
+              {
+                "title": "From Pre to Post Sales",
+                "link": "https://www.google.com/aclk?sa=L&ai=DChsSEwjevejx0cyUAxUbI0QIHWsVEFIYACICCAIQCBoCZHo&co=1&ase=2&gclid=EAIaIQobChMI3r3o8dHMlAMVGyNECB1rFRBSEAMYAiAFEgL_XPD_BwE&cid=CAASuwHkaOGFoYDXyCRBLW9LDqyIusMH6zxLcDduq-M4t0T5szaSBUOSLNBMZVOSI4-9ztOqNEc6qPk6ZpHjykqHlMMSowtQFgs8M1WpV6eOl93KtoMBjkVMU0CuCOfIxp721eWGRP6zJMZC1ohYntCvkhtDhv07dWyuwglParTHg46LSAz9-G87lKFElHOpCq_87krO5ULceA_GY2KNQ5VhDGz9wdCKaUlDuqNWbktq1QnPmnTDZ7Rx9c2VEr5j&cce=2&category=acrcp_v1_32&sig=AOD64_22aGENhYwMKDPwO_HGHpMKibnq4A&adurl=&q="
+              },
+              {
+                "title": "monday.com Work OS",
+                "link": "https://monday.com/"
+              }
+            ]
+          }
+        ],
+        "knowledge_graph": {
+          "title": "HubSpot",
+          "type": "Software company",
+          "entity_type": "companies, shopping_merchant",
+          "kgmid": "/m/02yxmbc",
+          "knowledge_graph_search_link": "https://www.google.com/search?kgmid=/m/02yxmbc&hl=en-US&q=HubSpot",
+          "serpapi_knowledge_graph_search_link": "https://serpapi.com/search.json?device=desktop&engine=google&google_domain=google.com&hl=en-US&kgmid=%2Fm%2F02yxmbc&q=HubSpot",
+          "description": "HubSpot, Inc. is a US-based developer and marketer of software products for marketing, sales, and customer service. HubSpot was founded by Brian Halligan and Dharmesh Shah in 2006. The global headquarters is in Cambridge, MA.",
+          "source": {
+            "name": "\u00a0Wikipedia",
+            "link": "https://en.wikipedia.org/wiki/HubSpot"
+          },
+          "founded": "June 2006, Cambridge, MA",
+          "founded_links": [
+            {
+              "text": "Cambridge, MA",
+              "link": "https://www.google.com/search?sca_esv=525e608177515078&q=Cambridge,+Massachusetts&si=AL3DRZHmwLjWhgnaPB3UTu10R6S5qNLXiQiKMeezfKyB1FMsRvlSglHfK0jIYuVtGpsiLfF3Omw7yROS4dXfvqeK8bWAj5iroPTXOV_wYUzO7pkIwsrZwf0sCQG4N2p1NnZH4i0blHIS5bcn-FEVQaDLQNL62OYVn8THFb0yA1BcQmk_rVP9EvjJcv_Z1k15Gnsw4wHiJnuD6sVhJwATZ8rvQs08ydCaVg%3D%3D&sa=X&ved=2ahUKEwj47-Px0cyUAxWPJUQIHYTWGEcQmxN6BAg4EAI"
+            }
+          ],
+          "headquarters": "Cambridge, MA",
+          "headquarters_links": [
+            {
+              "text": "Cambridge, MA",
+              "link": "https://www.google.com/search?sca_esv=525e608177515078&q=Cambridge,+Massachusetts&si=AL3DRZHmwLjWhgnaPB3UTu10R6S5qNLXiQiKMeezfKyB1FMsRvlSglHfK0jIYuVtGpsiLfF3Omw7yROS4dXfvqeK8bWAj5iroPTXOV_wYUzO7pkIwsrZwf0sCQG4N2p1NnZH4i0blHIS5bcn-FEVQaDLQNL62OYVn8THFb0yA1BcQmk_rVP9EvjJcv_Z1k15Gnsw4wHiJnuD6sVhJwATZ8rvQs08ydCaVg%3D%3D&sa=X&ved=2ahUKEwj47-Px0cyUAxWPJUQIHYTWGEcQmxN6BAg1EAI"
+            }
+          ],
+          "founders": "Brian Halligan, Dharmesh Shah",
+          "founders_links": [
+            {
+              "text": "Brian Halligan",
+              "link": "https://www.google.com/search?sca_esv=525e608177515078&q=Brian+Halligan&si=AL3DRZGDMkmBg1SB5TH8o8Xeh03tgmwpgZCgiYi5BFB_ELNOTBTTmPGIA8n6_VEbUtz8KumvgwpyWvPx2qHG0ZvvitzYNe3WG-c8DJ53a6VF4Ek56JAhFub-LQyBCHpP043FysB6PmXHnvDa8itbJRQE-1DKrGSAHi3tTB1LynFD27O7t6W-Ioz4rRT99aowm2EK5Sxl8zBnJejwLknfAo8ba2h1kaSznaPEYL1Y9n4L3ahizxV17fSPxUle74OY1TMuYOr0PDdkQ4fAYJGZpwtOhfiz3Hkj5g%3D%3D&sa=X&ved=2ahUKEwj47-Px0cyUAxWPJUQIHYTWGEcQmxN6BAg3EAI"
+            },
+            {
+              "text": "Dharmesh Shah",
+              "link": "https://www.google.com/search?sca_esv=525e608177515078&q=Dharmesh+Shah&si=AL3DRZGDMkmBg1SB5TH8o8Xeh03tgmwpgZCgiYi5BFB_ELNOTNvPzvq1qchG_OzVHVgnPSOhi0El0e8rLUWjJs2DZLO0zWUZp368PG-xzX5YuyxNDsS9sdJ9CWshDMOxv8aZH7w4ekAWrMzFwPZIdT_CTNoOicx-K7FV5J5UJnHeFE4Tg-h0oVqMCTNmOmjBIjLtvQ3ax268lL3WvKF_6IKXOZ1wsM1x6vnCL-lEX5bADWz2DnuujIhm_yubzS89EbHwHA-1aEbYq6UcZLhUGIqd0dCRTZ1IiA%3D%3D&sa=X&ved=2ahUKEwj47-Px0cyUAxWPJUQIHYTWGEcQmxN6BAg3EAM"
+            }
+          ],
+          "ceo": "Yamini Rangan (Sep 7, 2021\u2013)",
+          "ceo_links": [
+            {
+              "text": "Yamini Rangan",
+              "link": "https://www.google.com/search?sca_esv=525e608177515078&q=Yamini+Rangan&si=AL3DRZGNtcdgKOqVhotcr-UG2kkYpwR2WO4qu3O00NmpwBmLnZBXsqc2MPCSzDTeTbxnM05odYRuoZAMwC9IT7bHtqNkQmrnGQWfA3N25575J9XYwn_RtJD2LIU7Kk0Ib8i2YrNYSE5UZGrsC1X3GZPxMS9QZGlkD2FeM1dcYLnxjKgbA5PT_gANIYpwMZfAcan-2EkSGuo_sw--RlCl5bSCmKj9j9DcBw%3D%3D&sa=X&ved=2ahUKEwj47-Px0cyUAxWPJUQIHYTWGEcQmxN6BAg0EAI"
+            }
+          ],
+          "revenue": "2.17 billion USD (2023)"
+        },
+        "inline_videos": [
+          {
+            "position": 1,
+            "title": "What is HubSpot?",
+            "link": "https://www.youtube.com/watch?v=GnIREMgz-SQ",
+            "thumbnail": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRjM2uw9v7PLAIn_jwPZR2AiVeTSNjze067pog2S0wwdbr3qdxYncQsbw&s",
+            "channel": "HubSpot",
+            "duration": "1:10",
+            "platform": "YouTube",
+            "date": "Sep 12, 2024",
+            "snippet": "HubSpot is a connected customer platform with AI-powered software and a smart CRM to help your teams grow your business.",
+            "short_clip": "https://encrypted-vtbn0.gstatic.com/video?q=tbn:ANd9GcRmNBU9gJg7ybG89w-L0S-APCTXgoCumLto3Q"
+          },
+          {
+            "position": 2,
+            "title": "From Event Leads to Revenue: Building a Scalable Growth ...",
+            "link": "https://www.youtube.com/watch?v=fjhiqxbjARI",
+            "thumbnail": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTLl8b3aevKJFYkMjxqXN-n5QBhJoXno83c51KZgAnyq_QXQbzwcSnMdQ&s",
+            "channel": "hapily",
+            "duration": "1:00:27",
+            "platform": "YouTube",
+            "date": "1 day ago"
+          },
+          {
+            "position": 3,
+            "title": "What is HubSpot? | Complete Guide for Marketing & Sales in ...",
+            "link": "https://www.youtube.com/watch?v=KUOqhOWB_Q4",
+            "thumbnail": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcROaQINNk-zI8MNQ40Lf7gu1SPENvibUC9-g7R62neau3gAhQnO2M2B0A&s",
+            "channel": "Emersoft",
+            "duration": "5:01",
+            "platform": "YouTube",
+            "date": "Sep 16, 2025",
+            "snippet": "HubSpot is a CRM tool with features for deal management, marketing campaigns, website pages, and landing pages."
+          }
+        ],
+        "related_questions": [
+          {
+            "question": "What does HubSpot actually do?",
+            "type": "ai_overview",
+            "page_token": "Fudjo3icHdBdboIwAADg7DI-CoXhpolZhlKEBLK1tEhfltKCKOVnWgV52112qp1my07wJd_Xtzq29c_DvtK6v6wMYxiG-aHrDqqYi64x-OXeCkNwpXIu6tXiaQFeSrH2LoO76Qb3nYBrdAcO9YOh8Ogia5ZvjChNrfiYAPoobXnL03GkDTtzujzHLYTccjacyCg3QSI8WrEpMIsNyCRQHYWojX3JI6J8XGeD3EaDPNVmMsUKm2wvG8nYn4O9aCItApnFIgkCM1fxCadkRKnexa0b4H1F2VaNlGg_AWiXpWMod1Bx9aqxR6acCAwtveUAVrLprxiqMvH1O6Zuh6f4UxKI_GPo4lpHqAFhkjp9dIIIJSFH_rNJidMgf2lTCFWhKo-00J6V4ra2Z_9j64-y0av-3B1-AaRqeO4",
+            "serpapi_ai_overview_link": "https://serpapi.com/search.json?engine=google_ai_overview&page_token=Fudjo3icHdBdboIwAADg7DI-CoXhpolZhlKEBLK1tEhfltKCKOVnWgV52112qp1my07wJd_Xtzq29c_DvtK6v6wMYxiG-aHrDqqYi64x-OXeCkNwpXIu6tXiaQFeSrH2LoO76Qb3nYBrdAcO9YOh8Ogia5ZvjChNrfiYAPoobXnL03GkDTtzujzHLYTccjacyCg3QSI8WrEpMIsNyCRQHYWojX3JI6J8XGeD3EaDPNVmMsUKm2wvG8nYn4O9aCItApnFIgkCM1fxCadkRKnexa0b4H1F2VaNlGg_AWiXpWMod1Bx9aqxR6acCAwtveUAVrLprxiqMvH1O6Zuh6f4UxKI_GPo4lpHqAFhkjp9dIIIJSFH_rNJidMgf2lTCFWhKo-00J6V4ra2Z_9j64-y0av-3B1-AaRqeO4",
+            "next_page_token": "eyJvbnMiOiIxMDA0MSIsImZjIjoiRXFFQkNtSkJUVzR6TFhsU05tZHdXV0V3Vm1KUVN6SlhZbFYwVVUxVmNGbEVhSGx0YzNkZmRsSnNXR0p6VkRWWlZGQkxWbXRLUkZWT1IyMXBMVzAxUjJ4UE0yTmplRXhZU1RSV2NqVjNNRWR0U25NNFpFaG9PV2RmWTNVeE1rMXBTRUpsTkROeVp4SVhhME5yVVdGMmFtNUlXVjlNYTFCSlVHaExNMnAxUVZFYUlrRktTMHhHYlV0dk5UWmlZWGM0VVc1WmFEbFpNblk0Y2s5cmRuVlpZMHc1WVdjIiwiZmN2IjoiMyIsImVpIjoia0NrUWF2am5IWV9Ma1BJUGhLM2p1QVEiLCJxYyI6IkNnZG9kV0p6Y0c5MEVBQjlDUDVBUHciLCJxdWVzdGlvbiI6IldoYXQgZG9lcyBIdWJTcG90IGFjdHVhbGx5IGRvPyIsImxrIjoiR2gxM2FHRjBJR1J2WlhNZ2FIVmljM0J2ZENCaFkzUjFZV3hzZVNCa2J3IiwiYnMiOiJjLU55NUpJTHowZ3NVVWpKVHkxVzhDaE5DaTdJTDFGSVRDNHBUY3pKcVFTSzJodkpTOG1XdzFWa2xDWVZvNm5nZ2htUmlUQ2dyRmdoT0RFbnRUZ3R2eWc1RldGRUpzSUFvSXBpdUFvdVh5NlY4SXg4SkJQVWl4V1NNdFBUVTR0TEZKTHpjd3RTU3pKTDhvdnNqVlNsbE1zaDZxRG1ZRlhIcGNFbDZJbmtHd1huSUY5N0kyRXBRWmpsUVAyWlFBMUZ1UUtNQUEiLCJpZCI6ImZjX2tDa1FhdmpuSFlfTGtQSVBoSzNqdUFRXzUifQ==",
+            "serpapi_link": "https://serpapi.com/search.json?device=desktop&engine=google_related_questions&google_domain=google.com&next_page_token=eyJvbnMiOiIxMDA0MSIsImZjIjoiRXFFQkNtSkJUVzR6TFhsU05tZHdXV0V3Vm1KUVN6SlhZbFYwVVUxVmNGbEVhSGx0YzNkZmRsSnNXR0p6VkRWWlZGQkxWbXRLUkZWT1IyMXBMVzAxUjJ4UE0yTmplRXhZU1RSV2NqVjNNRWR0U25NNFpFaG9PV2RmWTNVeE1rMXBTRUpsTkROeVp4SVhhME5yVVdGMmFtNUlXVjlNYTFCSlVHaExNMnAxUVZFYUlrRktTMHhHYlV0dk5UWmlZWGM0VVc1WmFEbFpNblk0Y2s5cmRuVlpZMHc1WVdjIiwiZmN2IjoiMyIsImVpIjoia0NrUWF2am5IWV9Ma1BJUGhLM2p1QVEiLCJxYyI6IkNnZG9kV0p6Y0c5MEVBQjlDUDVBUHciLCJxdWVzdGlvbiI6IldoYXQgZG9lcyBIdWJTcG90IGFjdHVhbGx5IGRvPyIsImxrIjoiR2gxM2FHRjBJR1J2WlhNZ2FIVmljM0J2ZENCaFkzUjFZV3hzZVNCa2J3IiwiYnMiOiJjLU55NUpJTHowZ3NVVWpKVHkxVzhDaE5DaTdJTDFGSVRDNHBUY3pKcVFTSzJodkpTOG1XdzFWa2xDWVZvNm5nZ2htUmlUQ2dyRmdoT0RFbnRUZ3R2eWc1RldGRUpzSUFvSXBpdUFvdVh5NlY4SXg4SkJQVWl4V1NNdFBUVTR0TEZKTHpjd3RTU3pKTDhvdnNqVlNsbE1zaDZxRG1ZRlhIcGNFbDZJbmtHd1huSUY5N0kyRXBRWmpsUVAyWlFBMUZ1UUtNQUEiLCJpZCI6ImZjX2tDa1FhdmpuSFlfTGtQSVBoSzNqdUFRXzUifQ%3D%3D"
+          },
+          {
+            "question": "What is HubSpot vs Salesforce?",
+            "type": "ai_overview",
+            "page_token": "GxjMxHicHdDBboIwAADQ7Gc8irXqMhOzjEFRQp1taQtcFigihkLZRAFv-5d91b5my-7v9L6-9bmpfh6isuvay9qy-r6fnow56eNUmdpKL2OjLJVqnaWqWq8eV-C5UBv30tuvprcJB1c8giXXcU-ggbJGK-VQwmEiGEKJkALy-un2Z4JMay_hM8hckB5dlDApOG8oDd3hEM_QgrpqTkN0x01eHN0EYkl90qAd5cMtjGIQg3JHQr1iyDb5vDRE0uCNAzcXL2PG_YOq-IDD6h5w0CZbX6SR3gc8BlS2QME8SD3hZDpexrMecA8zNO-cFKAyr9srQ7oIvY4wYRt233_kHFHv7Nus6jCtASZyGKWmW1F1B9zQrXL8RVZRqURZMEcMeUTppFC3DZz8j23ei7pbt5_m9As5vHgK",
+            "serpapi_ai_overview_link": "https://serpapi.com/search.json?engine=google_ai_overview&page_token=GxjMxHicHdDBboIwAADQ7Gc8irXqMhOzjEFRQp1taQtcFigihkLZRAFv-5d91b5my-7v9L6-9bmpfh6isuvay9qy-r6fnow56eNUmdpKL2OjLJVqnaWqWq8eV-C5UBv30tuvprcJB1c8giXXcU-ggbJGK-VQwmEiGEKJkALy-un2Z4JMay_hM8hckB5dlDApOG8oDd3hEM_QgrpqTkN0x01eHN0EYkl90qAd5cMtjGIQg3JHQr1iyDb5vDRE0uCNAzcXL2PG_YOq-IDD6h5w0CZbX6SR3gc8BlS2QME8SD3hZDpexrMecA8zNO-cFKAyr9srQ7oIvY4wYRt233_kHFHv7Nus6jCtASZyGKWmW1F1B9zQrXL8RVZRqURZMEcMeUTppFC3DZz8j23ei7pbt5_m9As5vHgK",
+            "next_page_token": "eyJvbnMiOiIxMDA0MSIsImZjIjoiRXFFQkNtSkJUVzR6TFhsU05tZHdXV0V3Vm1KUVN6SlhZbFYwVVUxVmNGbEVhSGx0YzNkZmRsSnNXR0p6VkRWWlZGQkxWbXRLUkZWT1IyMXBMVzAxUjJ4UE0yTmplRXhZU1RSV2NqVjNNRWR0U25NNFpFaG9PV2RmWTNVeE1rMXBTRUpsTkROeVp4SVhhME5yVVdGMmFtNUlXVjlNYTFCSlVHaExNMnAxUVZFYUlrRktTMHhHYlV0dk5UWmlZWGM0VVc1WmFEbFpNblk0Y2s5cmRuVlpZMHc1WVdjIiwiZmN2IjoiMyIsImVpIjoia0NrUWF2am5IWV9Ma1BJUGhLM2p1QVEiLCJxYyI6IkNnZG9kV0p6Y0c5MEVBQjlDUDVBUHciLCJxdWVzdGlvbiI6IldoYXQgaXMgSHViU3BvdCB2cyBTYWxlc2ZvcmNlPyIsImxrIjoiR2gxM2FHRjBJR2x6SUdoMVluTndiM1FnZG5NZ2MyRnNaWE5tYjNKalpRIiwiYnMiOiJjLU55NUpJTHowZ3NVVWpKVHkxVzhDaE5DaTdJTDFGSVRDNHBUY3pKcVFTSzJodkpTOG1XdzFWa2xDWVZvNm5nZ2htUmlUQ2dyRmdoT0RFbnRUZ3R2eWc1RldGRUpzSUFvSXBpdUFvdVh5NlY4SXg4SkJQVWl4V1NNdFBUVTR0TEZKTHpjd3RTU3pKTDhvdnNqVlNsbE1zaDZxRG1ZRlhIcGNFbDZJbmtHd1huSUY5N0kyRXBRWmpsUVAyWlFBMUZ1UUtNQUEiLCJpZCI6ImZjX2tDa1FhdmpuSFlfTGtQSVBoSzNqdUFRXzUifQ==",
+            "serpapi_link": "https://serpapi.com/search.json?device=desktop&engine=google_related_questions&google_domain=google.com&next_page_token=eyJvbnMiOiIxMDA0MSIsImZjIjoiRXFFQkNtSkJUVzR6TFhsU05tZHdXV0V3Vm1KUVN6SlhZbFYwVVUxVmNGbEVhSGx0YzNkZmRsSnNXR0p6VkRWWlZGQkxWbXRLUkZWT1IyMXBMVzAxUjJ4UE0yTmplRXhZU1RSV2NqVjNNRWR0U25NNFpFaG9PV2RmWTNVeE1rMXBTRUpsTkROeVp4SVhhME5yVVdGMmFtNUlXVjlNYTFCSlVHaExNMnAxUVZFYUlrRktTMHhHYlV0dk5UWmlZWGM0VVc1WmFEbFpNblk0Y2s5cmRuVlpZMHc1WVdjIiwiZmN2IjoiMyIsImVpIjoia0NrUWF2am5IWV9Ma1BJUGhLM2p1QVEiLCJxYyI6IkNnZG9kV0p6Y0c5MEVBQjlDUDVBUHciLCJxdWVzdGlvbiI6IldoYXQgaXMgSHViU3BvdCB2cyBTYWxlc2ZvcmNlPyIsImxrIjoiR2gxM2FHRjBJR2x6SUdoMVluTndiM1FnZG5NZ2MyRnNaWE5tYjNKalpRIiwiYnMiOiJjLU55NUpJTHowZ3NVVWpKVHkxVzhDaE5DaTdJTDFGSVRDNHBUY3pKcVFTSzJodkpTOG1XdzFWa2xDWVZvNm5nZ2htUmlUQ2dyRmdoT0RFbnRUZ3R2eWc1RldGRUpzSUFvSXBpdUFvdVh5NlY4SXg4SkJQVWl4V1NNdFBUVTR0TEZKTHpjd3RTU3pKTDhvdnNqVlNsbE1zaDZxRG1ZRlhIcGNFbDZJbmtHd1huSUY5N0kyRXBRWmpsUVAyWlFBMUZ1UUtNQUEiLCJpZCI6ImZjX2tDa1FhdmpuSFlfTGtQSVBoSzNqdUFRXzUifQ%3D%3D"
+          },
+          {
+            "question": "Who is HubSpot's biggest competitor?",
+            "type": "ai_overview",
+            "page_token": "HBNSznicHdBdboIwAADg7DI-KsWfBROzjFkEhmyttNC-LLWgGIogFAHfdpedaqdZsu8I3_ePulyL36d7rnXdrmezvu-n56o6q2wqq3Im2vEqZ1IodRSyWK-eV-DlJDew8-y3m2cjArr9CJbk4XhiGzahyltZ6EW2pQsaa8UI0ofIGyiwWbjD3YHUriA-kiUuCKwhKTD7gNYgIxoQ4itxDRWNlXmA4BQaONzHvMXm0GCXCwbqITWdPHTPI05el8xYbgUBIIpSHcRhncXWTcL6zl3OcJIXcYI_WalclKgIQ6vNnPSB5jxmpj8ejaHDu8HBrt3FF-AJqvoU8p5T6gQJxjBPG2RqzBJ-OxY5T4yhIVAhAduHuFKb4OqCSB1EkOvDw38_OrSiZd8LaAWILAsJ2yHb5nsCUjcxqjHtJyd538wn_5-br1Op13VTnf8AJYSFXw",
+            "serpapi_ai_overview_link": "https://serpapi.com/search.json?engine=google_ai_overview&page_token=HBNSznicHdBdboIwAADg7DI-KsWfBROzjFkEhmyttNC-LLWgGIogFAHfdpedaqdZsu8I3_ePulyL36d7rnXdrmezvu-n56o6q2wqq3Im2vEqZ1IodRSyWK-eV-DlJDew8-y3m2cjArr9CJbk4XhiGzahyltZ6EW2pQsaa8UI0ofIGyiwWbjD3YHUriA-kiUuCKwhKTD7gNYgIxoQ4itxDRWNlXmA4BQaONzHvMXm0GCXCwbqITWdPHTPI05el8xYbgUBIIpSHcRhncXWTcL6zl3OcJIXcYI_WalclKgIQ6vNnPSB5jxmpj8ejaHDu8HBrt3FF-AJqvoU8p5T6gQJxjBPG2RqzBJ-OxY5T4yhIVAhAduHuFKb4OqCSB1EkOvDw38_OrSiZd8LaAWILAsJ2yHb5nsCUjcxqjHtJyd538wn_5-br1Op13VTnf8AJYSFXw",
+            "next_page_token": "eyJvbnMiOiIxMDA0MSIsImZjIjoiRXFFQkNtSkJUVzR6TFhsU05tZHdXV0V3Vm1KUVN6SlhZbFYwVVUxVmNGbEVhSGx0YzNkZmRsSnNXR0p6VkRWWlZGQkxWbXRLUkZWT1IyMXBMVzAxUjJ4UE0yTmplRXhZU1RSV2NqVjNNRWR0U25NNFpFaG9PV2RmWTNVeE1rMXBTRUpsTkROeVp4SVhhME5yVVdGMmFtNUlXVjlNYTFCSlVHaExNMnAxUVZFYUlrRktTMHhHYlV0dk5UWmlZWGM0VVc1WmFEbFpNblk0Y2s5cmRuVlpZMHc1WVdjIiwiZmN2IjoiMyIsImVpIjoia0NrUWF2am5IWV9Ma1BJUGhLM2p1QVEiLCJxYyI6IkNnZG9kV0p6Y0c5MEVBQjlDUDVBUHciLCJxdWVzdGlvbiI6IldobyBpcyBIdWJTcG90J3MgYmlnZ2VzdCBjb21wZXRpdG9yPyIsImxrIjoiR2lOM2FHOGdhWE1nYUhWaWMzQnZkQ2R6SUdKcFoyZGxjM1FnWTI5dGNHVjBhWFJ2Y2ciLCJicyI6ImMtTnk1SklMejBnc1VVakpUeTFXOENoTkNpN0lMMUZJVEM0cFRjekpxUVNLMmh2SlM4bVd3MVZrbENZVm82bmdnaG1SaVRDZ3JGZ2hPREVudFRndHZ5ZzVGV0ZFSnNJQW9JcGl1QW91WHk2VjhJeDhKQlBVaXhXU010UFRVNHRMRkpMemN3dFNTekpMOG92c2pWU2xsTXNoNnFEbVlGWEhwY0VsNklua0d3WG5JRjk3STJFcFFaamxRUDJaUUExRnVRS01BQSIsImlkIjoiZmNfa0NrUWF2am5IWV9Ma1BJUGhLM2p1QVFfNSJ9",
+            "serpapi_link": "https://serpapi.com/search.json?device=desktop&engine=google_related_questions&google_domain=google.com&next_page_token=eyJvbnMiOiIxMDA0MSIsImZjIjoiRXFFQkNtSkJUVzR6TFhsU05tZHdXV0V3Vm1KUVN6SlhZbFYwVVUxVmNGbEVhSGx0YzNkZmRsSnNXR0p6VkRWWlZGQkxWbXRLUkZWT1IyMXBMVzAxUjJ4UE0yTmplRXhZU1RSV2NqVjNNRWR0U25NNFpFaG9PV2RmWTNVeE1rMXBTRUpsTkROeVp4SVhhME5yVVdGMmFtNUlXVjlNYTFCSlVHaExNMnAxUVZFYUlrRktTMHhHYlV0dk5UWmlZWGM0VVc1WmFEbFpNblk0Y2s5cmRuVlpZMHc1WVdjIiwiZmN2IjoiMyIsImVpIjoia0NrUWF2am5IWV9Ma1BJUGhLM2p1QVEiLCJxYyI6IkNnZG9kV0p6Y0c5MEVBQjlDUDVBUHciLCJxdWVzdGlvbiI6IldobyBpcyBIdWJTcG90J3MgYmlnZ2VzdCBjb21wZXRpdG9yPyIsImxrIjoiR2lOM2FHOGdhWE1nYUhWaWMzQnZkQ2R6SUdKcFoyZGxjM1FnWTI5dGNHVjBhWFJ2Y2ciLCJicyI6ImMtTnk1SklMejBnc1VVakpUeTFXOENoTkNpN0lMMUZJVEM0cFRjekpxUVNLMmh2SlM4bVd3MVZrbENZVm82bmdnaG1SaVRDZ3JGZ2hPREVudFRndHZ5ZzVGV0ZFSnNJQW9JcGl1QW91WHk2VjhJeDhKQlBVaXhXU010UFRVNHRMRkpMemN3dFNTekpMOG92c2pWU2xsTXNoNnFEbVlGWEhwY0VsNklua0d3WG5JRjk3STJFcFFaamxRUDJaUUExRnVRS01BQSIsImlkIjoiZmNfa0NrUWF2am5IWV9Ma1BJUGhLM2p1QVFfNSJ9"
+          },
+          {
+            "question": "Is HubSpot a CRM?",
+            "type": "ai_overview",
+            "page_token": "ZKMf2HicHdBdboIwAADg7DI-ikBkwcQsqdASFAj9BV4WaMU6QHDgUN92l51qp1my7wjf9097vjS_L5mepmHcGMY8z8tT35_a41L2nVGOj4s0ZNm2VSmbjfPqmG-13PrjDHb9DFJm3qKHuebIHeOV2eWNymkQljkvBA1UFFsxx0jfj6J1Us7mQrg5s-W9zKRNoHsruW4TMRQUgkFl6kzt2MEeP8in2ucU-FGAr5iGO9q5GUd6YIiZPAAoF8pWlv-QTHtEwHXxoXFluQfBYMI8gMhKN4XAU4XMO0ahwzIN1SpMj146510cYJgSaE1eaUKtuuFGYFtTNKWEg54846tiEKNzCEgzRbgz99jDJKG8KwW_iwAMpAmz6qkJZmuY2zDB_gAWtfza2ov_se173U2b4bM__QF9NHeB",
+            "serpapi_ai_overview_link": "https://serpapi.com/search.json?engine=google_ai_overview&page_token=ZKMf2HicHdBdboIwAADg7DI-ikBkwcQsqdASFAj9BV4WaMU6QHDgUN92l51qp1my7wjf9097vjS_L5mepmHcGMY8z8tT35_a41L2nVGOj4s0ZNm2VSmbjfPqmG-13PrjDHb9DFJm3qKHuebIHeOV2eWNymkQljkvBA1UFFsxx0jfj6J1Us7mQrg5s-W9zKRNoHsruW4TMRQUgkFl6kzt2MEeP8in2ucU-FGAr5iGO9q5GUd6YIiZPAAoF8pWlv-QTHtEwHXxoXFluQfBYMI8gMhKN4XAU4XMO0ahwzIN1SpMj146510cYJgSaE1eaUKtuuFGYFtTNKWEg54846tiEKNzCEgzRbgz99jDJKG8KwW_iwAMpAmz6qkJZmuY2zDB_gAWtfza2ov_se173U2b4bM__QF9NHeB",
+            "next_page_token": "eyJvbnMiOiIxMDA0MSIsImZjIjoiRXFFQkNtSkJUVzR6TFhsU05tZHdXV0V3Vm1KUVN6SlhZbFYwVVUxVmNGbEVhSGx0YzNkZmRsSnNXR0p6VkRWWlZGQkxWbXRLUkZWT1IyMXBMVzAxUjJ4UE0yTmplRXhZU1RSV2NqVjNNRWR0U25NNFpFaG9PV2RmWTNVeE1rMXBTRUpsTkROeVp4SVhhME5yVVdGMmFtNUlXVjlNYTFCSlVHaExNMnAxUVZFYUlrRktTMHhHYlV0dk5UWmlZWGM0VVc1WmFEbFpNblk0Y2s5cmRuVlpZMHc1WVdjIiwiZmN2IjoiMyIsImVpIjoia0NrUWF2am5IWV9Ma1BJUGhLM2p1QVEiLCJxYyI6IkNnZG9kV0p6Y0c5MEVBQjlDUDVBUHciLCJxdWVzdGlvbiI6IklzIEh1YlNwb3QgYSBDUk0/IiwibGsiOiJHaEZvZFdKemNHOTBJR2x6SUdsMElHTnliUSIsImJzIjoiYy1OeTVKSUx6MGdzVVVqSlR5MVc4Q2hOQ2k3SUwxRklUQzRwVGN6SnFRU0syaHZKUzhtV3cxVmtsQ1lWbzZuZ2dobVJpVENnckZnaE9ERW50VGd0dnlnNUZXRkVKc0lBb0lwaXVBb3VYeTZWOEl4OEpCUFVpeFdTTXRQVFU0dExGSkx6Y3d0U1N6Skw4b3ZzalZTbGxNc2g2cURtWUZYSHBjRWw2SW5rR3dYbklGOTdJMkVwUVpqbFFQMlpRQTFGdVFLTUFBIiwiaWQiOiJmY19rQ2tRYXZqbkhZX0xrUElQaEszanVBUV81In0=",
+            "serpapi_link": "https://serpapi.com/search.json?device=desktop&engine=google_related_questions&google_domain=google.com&next_page_token=eyJvbnMiOiIxMDA0MSIsImZjIjoiRXFFQkNtSkJUVzR6TFhsU05tZHdXV0V3Vm1KUVN6SlhZbFYwVVUxVmNGbEVhSGx0YzNkZmRsSnNXR0p6VkRWWlZGQkxWbXRLUkZWT1IyMXBMVzAxUjJ4UE0yTmplRXhZU1RSV2NqVjNNRWR0U25NNFpFaG9PV2RmWTNVeE1rMXBTRUpsTkROeVp4SVhhME5yVVdGMmFtNUlXVjlNYTFCSlVHaExNMnAxUVZFYUlrRktTMHhHYlV0dk5UWmlZWGM0VVc1WmFEbFpNblk0Y2s5cmRuVlpZMHc1WVdjIiwiZmN2IjoiMyIsImVpIjoia0NrUWF2am5IWV9Ma1BJUGhLM2p1QVEiLCJxYyI6IkNnZG9kV0p6Y0c5MEVBQjlDUDVBUHciLCJxdWVzdGlvbiI6IklzIEh1YlNwb3QgYSBDUk0%2FIiwibGsiOiJHaEZvZFdKemNHOTBJR2x6SUdsMElHTnliUSIsImJzIjoiYy1OeTVKSUx6MGdzVVVqSlR5MVc4Q2hOQ2k3SUwxRklUQzRwVGN6SnFRU0syaHZKUzhtV3cxVmtsQ1lWbzZuZ2dobVJpVENnckZnaE9ERW50VGd0dnlnNUZXRkVKc0lBb0lwaXVBb3VYeTZWOEl4OEpCUFVpeFdTTXRQVFU0dExGSkx6Y3d0U1N6Skw4b3ZzalZTbGxNc2g2cURtWUZYSHBjRWw2SW5rR3dYbklGOTdJMkVwUVpqbFFQMlpRQTFGdVFLTUFBIiwiaWQiOiJmY19rQ2tRYXZqbkhZX0xrUElQaEszanVBUV81In0%3D"
+          }
+        ],
+        "organic_results": [
+          {
+            "position": 1,
+            "title": "HubSpot | Software & Tools for your Business - Homepage",
+            "link": "https://www.hubspot.com/",
+            "redirect_link": "https://www.google.com/url?sa=t&source=web&rct=j&opi=89978449&url=https://www.hubspot.com/&ved=2ahUKEwj47-Px0cyUAxWPJUQIHYTWGEcQFnoECBAQAQ",
+            "displayed_link": "https://www.hubspot.com",
+            "favicon": "https://serpapi.com/searches/6a10299050d43eb4bfa1b015/images/FU9OmfM-G0VjuCaLXcjazBvg3j-ULh4C3_M_aTIxP44.png",
+            "snippet": "HubSpot's customer platform includes all the marketing, sales, customer service, and CRM software you need to grow your business.",
+            "snippet_highlighted_words": [
+              "HubSpot's customer platform"
+            ],
+            "sitelinks": {
+              "expanded": [
+                {
+                  "title": "HubSpot Login and Sign in",
+                  "link": "https://app.hubspot.com/login",
+                  "snippet": "Sign into your HubSpot account through HubSpot's login page ..."
+                },
+                {
+                  "title": "Careers",
+                  "link": "https://www.hubspot.com/careers",
+                  "snippet": "Where The Bold Go To Grow \u00b7 Customer Success \u00b7 General ..."
+                },
+                {
+                  "title": "Academy",
+                  "link": "https://academy.hubspot.com/",
+                  "snippet": "Join the 200,000+ professionals who've grown their careers by ..."
+                },
+                {
+                  "title": "Free CRM Software",
+                  "link": "https://www.hubspot.com/products/crm",
+                  "snippet": "Free CRM Software for Startups & Small Businesses. Your data ..."
+                },
+                {
+                  "title": "Log in",
+                  "link": "https://knowledge.hubspot.com/account-management/log-in-to-hubspot",
+                  "snippet": "Log in to HubSpot \u00b7 In your browser, go to the login page ..."
+                }
+              ]
+            },
+            "about_this_result": {
+              "source": {
+                "description": "HubSpot's customer platform includes all the marketing, sales, customer service, and CRM software you need to grow your business.",
+                "source_info_link": "https://www.hubspot.com/",
+                "icon": "https://serpapi.com/searches/6a10299050d43eb4bfa1b015/images/FU9OmfM-G0VjuCaLXcjazLQ59gdgdAjrB910l27RMn0sppwroqYZlXD4dRujCYo0.png"
+              },
+              "languages": [
+                "en"
+              ],
+              "regions": [
+                "US"
+              ]
+            },
+            "about_page_link": "https://www.google.com/search?q=About+https://www.hubspot.com/&tbm=ilp",
+            "about_page_serpapi_link": "https://serpapi.com/search.json?engine=google_about_this_result&google_domain=google.com&q=About+https%3A%2F%2Fwww.hubspot.com%2F",
+            "source": "HubSpot"
+          },
+          {
+            "position": 2,
+            "title": "HubSpot",
+            "link": "https://www.linkedin.com/company/hubspot",
+            "redirect_link": "https://www.google.com/url?sa=t&source=web&rct=j&opi=89978449&url=https://www.linkedin.com/company/hubspot&ved=2ahUKEwj47-Px0cyUAxWPJUQIHYTWGEcQFnoECEkQAQ",
+            "displayed_link": "1.7M+ followers",
+            "favicon": "https://serpapi.com/searches/6a10299050d43eb4bfa1b015/images/FU9OmfM-G0VjuCaLXcjazHkn9v_NU_U7ASCKF9or9zM.png",
+            "snippet": "HubSpot is a leading agentic customer platform that provides software and support to help businesses grow better.",
+            "snippet_highlighted_words": [
+              "HubSpot"
+            ],
+            "about_this_result": {
+              "source": {
+                "description": "HubSpot is a leading agentic customer platform that provides software and support to help businesses grow better.",
+                "source_info_link": "https://www.linkedin.com/company/hubspot",
+                "icon": "https://serpapi.com/searches/6a10299050d43eb4bfa1b015/images/FU9OmfM-G0VjuCaLXcjazGDCjxO_3eG1ZgNAY2ZQbsy3mSjERmGnqYh27M3FBqEA.png"
+              },
+              "languages": [
+                "en"
+              ],
+              "regions": [
+                "US"
+              ]
+            },
+            "about_page_link": "https://www.google.com/search?q=About+https://www.linkedin.com/company/hubspot&tbm=ilp",
+            "about_page_serpapi_link": "https://serpapi.com/search.json?engine=google_about_this_result&google_domain=google.com&q=About+https%3A%2F%2Fwww.linkedin.com%2Fcompany%2Fhubspot",
+            "source": "LinkedIn \u00b7 HubSmart CRM Solutions"
+          },
+          {
+            "position": 3,
+            "title": "HubSpot",
+            "link": "https://www.facebook.com/hubspot/",
+            "redirect_link": "https://www.google.com/url?sa=t&source=web&rct=j&opi=89978449&url=https://www.facebook.com/hubspot/&ved=2ahUKEwj47-Px0cyUAxWPJUQIHYTWGEcQFnoECEcQAQ",
+            "displayed_link": "2.1M+ followers",
+            "favicon": "https://serpapi.com/searches/6a10299050d43eb4bfa1b015/images/FU9OmfM-G0VjuCaLXcjazDg5tNeR5LXkXlcNOue0mJ8.png",
+            "snippet": "Is your business the answer? HubSpot's AEO tool tracks where you show up, where competitors are beating you, and what content to create to close the gap. Try it ...",
+            "snippet_highlighted_words": [
+              "HubSpot's AEO tool"
+            ],
+            "about_this_result": {
+              "source": {
+                "description": "Is your business the answer? HubSpot's AEO tool tracks where you show up, where competitors are beating you, and what content to create to close the gap. Try it ...",
+                "source_info_link": "https://www.facebook.com/hubspot/",
+                "icon": "https://serpapi.com/searches/6a10299050d43eb4bfa1b015/images/FU9OmfM-G0VjuCaLXcjazLDBVGVPacP48fnw-36XlQlzY7aL-FJe3tAax4VlSVta.png"
+              },
+              "languages": [
+                "en"
+              ],
+              "regions": [
+                "US"
+              ]
+            },
+            "about_page_link": "https://www.google.com/search?q=About+https://www.facebook.com/hubspot/&tbm=ilp",
+            "about_page_serpapi_link": "https://serpapi.com/search.json?engine=google_about_this_result&google_domain=google.com&q=About+https%3A%2F%2Fwww.facebook.com%2Fhubspot%2F",
+            "source": "Facebook \u00b7 HubSpot"
+          },
+          {
+            "position": 4,
+            "title": "HubSpot",
+            "link": "https://en.wikipedia.org/wiki/HubSpot",
+            "redirect_link": "https://www.google.com/url?sa=t&source=web&rct=j&opi=89978449&url=https://en.wikipedia.org/wiki/HubSpot&ved=2ahUKEwj47-Px0cyUAxWPJUQIHYTWGEcQFnoECEgQAQ",
+            "displayed_link": "https://en.wikipedia.org \u203a wiki \u203a HubSpot",
+            "favicon": "https://serpapi.com/searches/6a10299050d43eb4bfa1b015/images/FU9OmfM-G0VjuCaLXcjazK8EQgGYaLCpMPm1F6mmm3U.png",
+            "snippet": "HubSpot, Inc. is a US-based developer and marketer of software products for marketing, sales, and customer service. HubSpot was founded by Brian Halligan and ...",
+            "snippet_highlighted_words": [
+              "US-based developer and marketer of software products"
+            ],
+            "about_this_result": {
+              "source": {
+                "description": "HubSpot, Inc. is a US-based developer and marketer of software products for marketing, sales, and customer service. HubSpot was founded by Brian Halligan and ...",
+                "source_info_link": "https://en.wikipedia.org/wiki/HubSpot",
+                "icon": "https://serpapi.com/searches/6a10299050d43eb4bfa1b015/images/FU9OmfM-G0VjuCaLXcjazMP85eckawdRUEKP3iUbVDVpK-8Nlx6lptHiX6g9uy7q.png"
+              },
+              "languages": [
+                "en"
+              ],
+              "regions": [
+                "US"
+              ]
+            },
+            "about_page_link": "https://www.google.com/search?q=About+https://en.wikipedia.org/wiki/HubSpot&tbm=ilp",
+            "about_page_serpapi_link": "https://serpapi.com/search.json?engine=google_about_this_result&google_domain=google.com&q=About+https%3A%2F%2Fen.wikipedia.org%2Fwiki%2FHubSpot",
+            "source": "Wikipedia"
+          },
+          {
+            "position": 5,
+            "title": "HubSpot (@hubspot) \u00b7 Cambridge, MA",
+            "link": "https://www.instagram.com/hubspot/?hl=en",
+            "redirect_link": "https://www.google.com/url?sa=t&source=web&rct=j&opi=89978449&url=https://www.instagram.com/hubspot/%3Fhl%3Den&ved=2ahUKEwj47-Px0cyUAxWPJUQIHYTWGEcQFnoECEoQAQ",
+            "displayed_link": "650.3K+ followers",
+            "favicon": "https://serpapi.com/searches/6a10299050d43eb4bfa1b015/images/FU9OmfM-G0VjuCaLXcjazOt_jUtlQXveBBisdgOCSE8.png",
+            "snippet": "650K followers \u00b7 3.2K+ posts \u00b7 The agentic customer platform to scale your business.",
+            "snippet_highlighted_words": [
+              "The agentic customer platform"
+            ],
+            "about_this_result": {
+              "source": {
+                "description": "650K followers \u00b7 3.2K+ posts \u00b7 The agentic customer platform to scale your business.",
+                "source_info_link": "https://www.instagram.com/hubspot/?hl=en",
+                "icon": "https://serpapi.com/searches/6a10299050d43eb4bfa1b015/images/FU9OmfM-G0VjuCaLXcjazO55No3MOmm0fCAi8EIoKIR2Q5_Nq-P7eI9WRDHLJqXI.png"
+              },
+              "languages": [
+                "en"
+              ],
+              "regions": [
+                "US"
+              ]
+            },
+            "about_page_link": "https://www.google.com/search?q=About+https://www.instagram.com/hubspot/?hl=en&tbm=ilp",
+            "about_page_serpapi_link": "https://serpapi.com/search.json?engine=google_about_this_result&google_domain=google.com&q=About+https%3A%2F%2Fwww.instagram.com%2Fhubspot%2F%3Fhl%3Den",
+            "source": "Instagram \u00b7 hubspot"
+          }
+        ],
+        "perspectives": [
+          {
+            "author": "dharmesh",
+            "source": "X",
+            "extensions": [
+              "900+ likes "
+            ],
+            "title": "BREAKING NEWS: HubSpot co-founder/CTO buys $1.8M of his own company's shares. Disclosure 1: Yes, I'm that guy. (And no, I'm not used to talking about myself in the third person -- will not make a habit of it). Disclosure 2: This is not investment advice. Please do not buy or sell $HUBS shares based on this. So, why am I sharing this and writing about it? Well, for one, at least in my little world, it's noteworthy. It's been a while since I've bought HubSpot shares (I think it was back in 2022). Also, instead of answering the common questions from friends, family and colleagues, I figured it would be easier and more efficient to just answer them just once, here. 1) Why buy more HubSpot shares? Simple. I'm a big believer in the long-term vision of HubSpot and the team driving it. 2) Why do this now? Hasn't the stock been falling? Yes, the share price has dropped considerably despite what was a pretty strong quarter (results reported publicly last week). We added 10,800",
+            "link": "https://x.com/dharmesh/status/2054629020407411012?ref_src=twsrc%5Egoogle%7Ctwcamp%5Eserp%7Ctwgr%5Etweet",
+            "date": "1 week ago"
+          },
+          {
+            "author": "r/CRMSoftware",
+            "source": "Reddit",
+            "extensions": [
+              "10+ comments "
+            ],
+            "title": "Does HubSpot have a CRM and is it actually good enough?",
+            "snippet": "Popular comment \u00b7 HubSpot is/was a marketing tool for email/web marketing journeys morphed over time into a full featured CRM. Zoho, Salesforce, etc. are/were full featured CRMs that morphed over time to be a marketing tool for complex email/web journeys. Historically, CRMs (the older ones like Zoho and Salesforce) were for B2B sales (proposals, presentations, contracts) and then with the advent of the Internet direct to consumer became a thing and B2C became very significant and they added those features. HubSpot was built for B2C and it has morphed into features more in line with B2B. That is the CRM marketplace in a nutshell. Some CRMs started out as marketing platforms for B2C and others as traditional sales platforms and that is their DNA even after they have morphed to more full featured systems. Both have excellent email integration. Both can easily do email reminders and drip campaigns and manage sales pipelines but HubSpot is easier to use for these things. This difference is also evident in their pricing. HubSpot charges both a monthly amount and then they charge more the more leads you want to market to--essential charging by the lead in your system. Salesforce and, to a lesser degree, Zoho charges more the more seats you have with no charge per lead at all--you can have one seat with a million leads. Salesforce and Zoho are better at managing customer relationships (They have the ability to be an application platform and automation platform and have better 3rd party integrations). HubSpot is better at managing leads, particularly \"wide funnel\" leads but once a lead turns into a customer, it is weaker. It isn't that HubSpot isn't customizable, it is the depth of customization is much more shallow. People build vast complex systems inside of Salesforce/Zoho CRM regularly. The same can't be said of HubSpot. If you look at a site like Upwork for consultants, or as a consultant looking for projects, way more people want consultants to help them migrate off HubSpot because of their pricing model and outgrowing it than the other guys. This is because the longer you are in business, the more leads you acquire and the more you have to pay Hubspot and people outgrow HubSpot functionally. Orgs don't outgrow Salesforce/Zoho as they can always be tailored/customized to a growing changing company and companies can have hundreds of seats on these systems and it won't blink. Hundred or thousands of seats are not at all unusual. I can't imagine a HubSpot implementation like that. I have seen HubSpot on marketing/lead management attached to Zoho or even Salesforce for the rest of the sale journey.",
+            "link": "https://www.reddit.com/r/CRMSoftware/comments/1tj7quf/does_hubspot_have_a_crm_and_is_it_actually_good/",
+            "date": "1 day ago"
+          },
+          {
+            "author": "Daniel Disney",
+            "source": "LinkedIn",
+            "extensions": [
+              "380+ reactions "
+            ],
+            "thumbnails": [
+              "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRYPtFtteWCZ8eMMle4qaWB08I6eKuUNPJRn9coefpejYbosf3BxhiZ10VxuA&usqp=CAI&s"
+            ],
+            "title": "I asked ChatGPT a simple question last week: \"What CRM should a small sales team use?\" The answer wasn't from Google. Not an ad. It was a direct recommendation from a conversation. Here's the thing most teams haven't realised yet... Your buyers are doin",
+            "link": "https://www.linkedin.com/posts/danieldisney_hubspotmediapartner-ad-activity-7462510493417762816-E0Rj",
+            "date": "2 days ago"
+          },
+          {
+            "author": "HubSpot Live",
+            "source": "YouTube",
+            "duration": "4:06",
+            "extensions": [
+              "30+ views "
+            ],
+            "thumbnails": [
+              "https://img.youtube.com/vi/vYGdgwln0vg/hqdefault.jpg"
+            ],
+            "title": "Why AI Needs More Than Data to Drive Real Business Action | GROW ANZ 2026 | HubSpot Live",
+            "link": "https://www.youtube.com/watch?v=vYGdgwln0vg&vl=en-US",
+            "date": "2 days ago"
+          },
+          {
+            "author": "Jigar Thakker",
+            "source": "LinkedIn",
+            "thumbnails": [
+              "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQqacxLSwyy2soZMBw42x3vc1bMZ0e-UyVCSlKB2xuzmDfyuacimgcQvV2gyA&usqp=CAI&s"
+            ],
+            "title": "HubSpot for Financial Services: How to Drive Growth Without Touching Regulated Data",
+            "link": "https://www.linkedin.com/pulse/hubspot-financial-services-how-drive-growth-without-touching-thakker-zu2cc",
+            "date": "6 days ago"
+          },
+          {
+            "author": "hubspot",
+            "source": "Instagram",
+            "duration": "0:07",
+            "extensions": [
+              "50+ likes "
+            ],
+            "thumbnails": [
+              "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcT_Y6gGgzavAKeh1higsMnAhqFzo-PkpcvBwzqoQM2IIFLjYX-cjt7z6BXG19Q&usqp=CAI&s=10"
+            ],
+            "title": "When buyers ask AI for recommendations, your brand either shows up or it doesn\u2019t. That\u2019s your AI visibility score. Do you know yours? HubSpot AEO can tell you where you stand and what to do to improve your score. Try it free for 28 days. Link in bio.",
+            "link": "https://www.instagram.com/reel/DYfekSzKOJv/",
+            "date": "3 days ago"
+          },
+          {
+            "author": "Marketing Against the Grain",
+            "source": "YouTube",
+            "duration": "0:44",
+            "extensions": [
+              "1.5K+ views "
+            ],
+            "thumbnails": [
+              "https://img.youtube.com/vi/N_Ep1QCZzhc/hqdefault.jpg"
+            ],
+            "title": "HubSpot CMO HubSpot CMO You will get FORCED out of marketing if you don't know these 2 things",
+            "link": "https://www.youtube.com/shorts/N_Ep1QCZzhc",
+            "date": "6 days ago",
+            "video": "https://encrypted-vtbn0.gstatic.com/video?q=tbn:ANd9GcRxGvDBL09gBt0yollSfMebP4xeIdXLi1WgBg"
+          },
+          {
+            "author": "Brad Rosen",
+            "source": "LinkedIn",
+            "thumbnails": [
+              "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQh5iWbzQgef7KnPu_flamhkaolU3ochhdduhCW3nodfih01KcC-0IWdSpKAQ&usqp=CAI&s"
+            ],
+            "title": "HubSpot dropped 23.31% today after two Wall Street firms downgraded the stock, citing a murkier growth outlook. The kicker? \"Despite strong Q1 results.\" This isn't a post knocking HubSpot. We use Sales Hub, Service Hub, and Marketing Hub at Sales Assem",
+            "link": "https://www.linkedin.com/posts/bradrosen1_hubspot-dropped-2331-today-after-two-wall-activity-7458515743530422272-XJlA",
+            "date": "2 weeks ago"
+          },
+          {
+            "author": "Blue Collar Millionaire",
+            "source": "Facebook",
+            "extensions": [
+              "10+ reactions "
+            ],
+            "thumbnails": [
+              "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcR5_kC1gmQtilC01PWw12SHMLKRWLHU3b8Vto0mHZeW8MA85Ui1aFKe6EmxWw&usqp=CAI&s"
+            ],
+            "title": "Anyone in here good with workflow systems like HubSpot? I need help getting my stuff set up if anyone can help me. Thanks",
+            "link": "https://www.facebook.com/groups/bluecollarmillionaire/posts/1637534108380391/",
+            "date": "2 weeks ago"
+          },
+          {
+            "author": "Caleb Ulku",
+            "source": "YouTube",
+            "duration": "27:31",
+            "extensions": [
+              "8.3K+ views "
+            ],
+            "thumbnails": [
+              "https://img.youtube.com/vi/MGPRhOWQEIw/hqdefault.jpg"
+            ],
+            "title": "HubSpot CEO Just Broke SEO",
+            "link": "https://www.youtube.com/watch?v=MGPRhOWQEIw",
+            "date": "1 week ago",
+            "video": "https://encrypted-vtbn0.gstatic.com/video?q=tbn:ANd9GcQoAQ8Fo8DCT59yRzI9pZVrci7Nj9fBy3Iqcg"
+          },
+          {
+            "author": "r/DigitalMarketing",
+            "source": "Reddit",
+            "extensions": [
+              "20+ comments "
+            ],
+            "title": "Low key impressed with HubSpot for content strategy",
+            "snippet": "Popular comment \u00b7 Most teams do not struggle with writing content. They struggle with connecting it to actual demand. The cluster structure helps a lot with that. Same reason Leadline works well for Reddit marketing because it starts from existing conversations instead of random topic guessing.",
+            "link": "https://www.reddit.com/r/DigitalMarketing/comments/1tc2s80/low_key_impressed_with_hubspot_for_content/",
+            "date": "1 week ago"
+          },
+          {
+            "author": "r/DevelEire",
+            "source": "Reddit",
+            "extensions": [
+              "30+ comments "
+            ],
+            "title": "Moral at Hubspot with stock price?",
+            "snippet": "Popular comment \u00b7 It's basically the whole saas industry right now, not just one company. Morale across the board is low, but that's unfortunately the nature of uncertainty.",
+            "link": "https://www.reddit.com/r/DevelEire/comments/1tcf06w/moral_at_hubspot_with_stock_price/",
+            "date": "1 week ago"
+          }
+        ],
+        "related_searches": [
+          {
+            "block_position": 1,
+            "query": "HubSpot Academy",
+            "link": "https://www.google.com/search?sca_esv=525e608177515078&q=HubSpot+Academy&sa=X&ved=2ahUKEwj47-Px0cyUAxWPJUQIHYTWGEcQ1QJ6BAhEEAE",
+            "serpapi_link": "https://serpapi.com/search.json?device=desktop&engine=google&google_domain=google.com&q=HubSpot+Academy"
+          },
+          {
+            "block_position": 1,
+            "query": "HubSpot login",
+            "link": "https://www.google.com/search?sca_esv=525e608177515078&q=HubSpot+login&sa=X&ved=2ahUKEwj47-Px0cyUAxWPJUQIHYTWGEcQ1QJ6BAhXEAE",
+            "serpapi_link": "https://serpapi.com/search.json?device=desktop&engine=google&google_domain=google.com&q=HubSpot+login"
+          },
+          {
+            "block_position": 1,
+            "query": "HubSpot CRM",
+            "link": "https://www.google.com/search?sca_esv=525e608177515078&q=HubSpot+CRM&sa=X&ved=2ahUKEwj47-Px0cyUAxWPJUQIHYTWGEcQ1QJ6BAhVEAE",
+            "serpapi_link": "https://serpapi.com/search.json?device=desktop&engine=google&google_domain=google.com&q=HubSpot+CRM"
+          },
+          {
+            "block_position": 1,
+            "query": "HubSpot products",
+            "link": "https://www.google.com/search?sca_esv=525e608177515078&q=HubSpot+products&sa=X&ved=2ahUKEwj47-Px0cyUAxWPJUQIHYTWGEcQ1QJ6BAhOEAE",
+            "serpapi_link": "https://serpapi.com/search.json?device=desktop&engine=google&google_domain=google.com&q=HubSpot+products"
+          },
+          {
+            "block_position": 1,
+            "query": "HubSpot download",
+            "link": "https://www.google.com/search?sca_esv=525e608177515078&q=HubSpot+download&sa=X&ved=2ahUKEwj47-Px0cyUAxWPJUQIHYTWGEcQ1QJ6BAhMEAE",
+            "serpapi_link": "https://serpapi.com/search.json?device=desktop&engine=google&google_domain=google.com&q=HubSpot+download"
+          },
+          {
+            "block_position": 1,
+            "query": "HubSpot blog",
+            "link": "https://www.google.com/search?sca_esv=525e608177515078&q=HubSpot+blog&sa=X&ved=2ahUKEwj47-Px0cyUAxWPJUQIHYTWGEcQ1QJ6BAhLEAE",
+            "serpapi_link": "https://serpapi.com/search.json?device=desktop&engine=google&google_domain=google.com&q=HubSpot+blog"
+          },
+          {
+            "block_position": 1,
+            "query": "HubSpot Reddit",
+            "link": "https://www.google.com/search?sca_esv=525e608177515078&q=HubSpot+Reddit&sa=X&ved=2ahUKEwj47-Px0cyUAxWPJUQIHYTWGEcQ1QJ6BAhGEAE",
+            "serpapi_link": "https://serpapi.com/search.json?device=desktop&engine=google&google_domain=google.com&q=HubSpot+Reddit"
+          },
+          {
+            "block_position": 1,
+            "query": "HubSpot pricing",
+            "link": "https://www.google.com/search?sca_esv=525e608177515078&q=HubSpot+pricing&sa=X&ved=2ahUKEwj47-Px0cyUAxWPJUQIHYTWGEcQ1QJ6BAhFEAE",
+            "serpapi_link": "https://serpapi.com/search.json?device=desktop&engine=google&google_domain=google.com&q=HubSpot+pricing"
+          }
+        ],
+        "pagination": {
+          "current": 1,
+          "next": "https://www.google.com/search?q=HubSpot&sca_esv=525e608177515078&ei=kCkQavjnHY_LkPIPhK3juAQ&start=10&sa=N&sstk=AU9db-BVXVfNtC3eYriZ80yqyBPQwLT9nSlMDDzbh1u96f0aGhcsk5HtTvHPn90PXT2AULh3FCqd5mKCBZyKG8ReQV1zTKz7-dMLpA&ved=2ahUKEwj47-Px0cyUAxWPJUQIHYTWGEcQ8NMDegQIQhAS",
+          "other_pages": {
+            "2": "https://www.google.com/search?q=HubSpot&sca_esv=525e608177515078&ei=kCkQavjnHY_LkPIPhK3juAQ&start=10&sa=N&sstk=AU9db-BVXVfNtC3eYriZ80yqyBPQwLT9nSlMDDzbh1u96f0aGhcsk5HtTvHPn90PXT2AULh3FCqd5mKCBZyKG8ReQV1zTKz7-dMLpA&ved=2ahUKEwj47-Px0cyUAxWPJUQIHYTWGEcQ8tMDegQIQhAE",
+            "3": "https://www.google.com/search?q=HubSpot&sca_esv=525e608177515078&ei=kCkQavjnHY_LkPIPhK3juAQ&start=20&sa=N&sstk=AU9db-BVXVfNtC3eYriZ80yqyBPQwLT9nSlMDDzbh1u96f0aGhcsk5HtTvHPn90PXT2AULh3FCqd5mKCBZyKG8ReQV1zTKz7-dMLpA&ved=2ahUKEwj47-Px0cyUAxWPJUQIHYTWGEcQ8tMDegQIQhAG",
+            "4": "https://www.google.com/search?q=HubSpot&sca_esv=525e608177515078&ei=kCkQavjnHY_LkPIPhK3juAQ&start=30&sa=N&sstk=AU9db-BVXVfNtC3eYriZ80yqyBPQwLT9nSlMDDzbh1u96f0aGhcsk5HtTvHPn90PXT2AULh3FCqd5mKCBZyKG8ReQV1zTKz7-dMLpA&ved=2ahUKEwj47-Px0cyUAxWPJUQIHYTWGEcQ8tMDegQIQhAI",
+            "5": "https://www.google.com/search?q=HubSpot&sca_esv=525e608177515078&ei=kCkQavjnHY_LkPIPhK3juAQ&start=40&sa=N&sstk=AU9db-BVXVfNtC3eYriZ80yqyBPQwLT9nSlMDDzbh1u96f0aGhcsk5HtTvHPn90PXT2AULh3FCqd5mKCBZyKG8ReQV1zTKz7-dMLpA&ved=2ahUKEwj47-Px0cyUAxWPJUQIHYTWGEcQ8tMDegQIQhAK",
+            "6": "https://www.google.com/search?q=HubSpot&sca_esv=525e608177515078&ei=kCkQavjnHY_LkPIPhK3juAQ&start=50&sa=N&sstk=AU9db-BVXVfNtC3eYriZ80yqyBPQwLT9nSlMDDzbh1u96f0aGhcsk5HtTvHPn90PXT2AULh3FCqd5mKCBZyKG8ReQV1zTKz7-dMLpA&ved=2ahUKEwj47-Px0cyUAxWPJUQIHYTWGEcQ8tMDegQIQhAM",
+            "7": "https://www.google.com/search?q=HubSpot&sca_esv=525e608177515078&ei=kCkQavjnHY_LkPIPhK3juAQ&start=60&sa=N&sstk=AU9db-BVXVfNtC3eYriZ80yqyBPQwLT9nSlMDDzbh1u96f0aGhcsk5HtTvHPn90PXT2AULh3FCqd5mKCBZyKG8ReQV1zTKz7-dMLpA&ved=2ahUKEwj47-Px0cyUAxWPJUQIHYTWGEcQ8tMDegQIQhAO",
+            "8": "https://www.google.com/search?q=HubSpot&sca_esv=525e608177515078&ei=kCkQavjnHY_LkPIPhK3juAQ&start=70&sa=N&sstk=AU9db-BVXVfNtC3eYriZ80yqyBPQwLT9nSlMDDzbh1u96f0aGhcsk5HtTvHPn90PXT2AULh3FCqd5mKCBZyKG8ReQV1zTKz7-dMLpA&ved=2ahUKEwj47-Px0cyUAxWPJUQIHYTWGEcQ8tMDegQIQhAQ"
+          }
+        },
+        "serpapi_pagination": {
+          "current": 1,
+          "next_link": "https://serpapi.com/search.json?device=desktop&engine=google&google_domain=google.com&q=HubSpot&start=10",
+          "next": "https://serpapi.com/search.json?device=desktop&engine=google&google_domain=google.com&q=HubSpot&start=10",
+          "other_pages": {
+            "2": "https://serpapi.com/search.json?device=desktop&engine=google&google_domain=google.com&q=HubSpot&start=10",
+            "3": "https://serpapi.com/search.json?device=desktop&engine=google&google_domain=google.com&q=HubSpot&start=20",
+            "4": "https://serpapi.com/search.json?device=desktop&engine=google&google_domain=google.com&q=HubSpot&start=30",
+            "5": "https://serpapi.com/search.json?device=desktop&engine=google&google_domain=google.com&q=HubSpot&start=40",
+            "6": "https://serpapi.com/search.json?device=desktop&engine=google&google_domain=google.com&q=HubSpot&start=50",
+            "7": "https://serpapi.com/search.json?device=desktop&engine=google&google_domain=google.com&q=HubSpot&start=60",
+            "8": "https://serpapi.com/search.json?device=desktop&engine=google&google_domain=google.com&q=HubSpot&start=70"
+          }
+        }
+      }
+    ],
+    "Run an Actor and get dataset": [
+      {
+        "company_name": "HubSpot",
+        "website": "https://www.hubspot.com",
+        "linkedin_url": "https://www.linkedin.com/company/hubspot",
+        "employee_count": 10001,
+        "industry": "Software Development",
+        "country": "United States",
+        "description": "HubSpot is a leading customer relationship management (CRM) platform that provides software and support to help businesses grow better."
+      }
+    ]
+  },
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "a90343fa43e1bff8f27b82db8d1553e8d27a1fc9a77d116f396231b4064d5a85"
+  }
+}
