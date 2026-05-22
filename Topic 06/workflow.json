@@ -1,0 +1,616 @@
+{
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "influencer-intake",
+        "options": {}
+      },
+      "id": "1ce6366f-fb00-4ae9-9dcd-c3d86d140e14",
+      "name": "Webhook Trigger2",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        816,
+        -384
+      ],
+      "webhookId": "4c9532a1-ff80-47ae-9f3b-b6af419d1ba8"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT id, raw_handle, platform, follower_count, email, country, industry FROM pipeline_leads WHERE status = 'PENDING' LIMIT 100;",
+        "options": {}
+      },
+      "id": "90d96df5-178e-43cd-b052-6ef3639285b9",
+      "name": "PostgreSQL Primary Source1",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [
+        1040,
+        -384
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{$json.raw_handle}}",
+              "operation": "isNotEmpty"
+            },
+            {
+              "value1": "={{$json.email}}",
+              "operation": "contains",
+              "value2": "@"
+            }
+          ]
+        }
+      },
+      "id": "b411f2d9-b1c6-4805-bad7-232eeb1a5cf7",
+      "name": "Validation Gate1",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        1264,
+        -384
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "select",
+        "schema": {
+          "__rl": true,
+          "mode": "list",
+          "value": "public"
+        },
+        "table": {
+          "__rl": true,
+          "value": "processed_influencers",
+          "mode": "list",
+          "cachedResultName": "processed_influencers"
+        },
+        "limit": null,
+        "where": {
+          "values": [
+            {
+              "column": "handle",
+              "value": "={{ $node[\"PostgreSQL Primary Source1\"].json.raw_handle }}"
+            }
+          ]
+        },
+        "sort": {
+          "values": []
+        },
+        "options": {}
+      },
+      "id": "74dabcaa-6155-402f-ba7a-b69d85eac652",
+      "name": "Duplicate Check2",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [
+        1520,
+        -384
+      ],
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "number": [],
+          "string": [
+            {
+              "value1": "={{ $node[\"PostgreSQL Primary Source1\"].json.raw_handle }}",
+              "operation": "isEmpty"
+            }
+          ]
+        }
+      },
+      "id": "79bfe402-70ca-487f-970a-000e1e7fd803",
+      "name": "Is Unique?1",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        1696,
+        -384
+      ]
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "id": "3237c7c7-30fb-462f-a015-0d78101f92f3",
+      "name": "Split In Batches2",
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 1,
+      "position": [
+        1920,
+        -384
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "const item = $input.item.json;\n\nconst handle = item.raw_handle || '';\nconst email = item.email || '';\nconst country = item.country || 'Unknown';\n\nitem.normalized_handle = handle.toLowerCase().replace(/[@\\s]/g, '');\nitem.normalized_email = email.toLowerCase().trim();\nitem.normalized_country = country.toUpperCase().substring(0, 2);\nitem.processed_at = new Date().toISOString();\n\nreturn item;"
+      },
+      "id": "7f60ea07-9a39-4bec-92f0-cfac45a05e93",
+      "name": "Normalization Code Node1",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2368,
+        -384
+      ]
+    },
+    {
+      "parameters": {
+        "amount": 2,
+        "unit": "seconds"
+      },
+      "id": "ffe5f979-1b15-4e7d-9157-8bbedfef8fbf",
+      "name": "Rate Control Wait1",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1,
+      "position": [
+        2960,
+        -384
+      ],
+      "webhookId": "80feac58-5d84-41bc-a14c-d414a5777c7a"
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "YOUR_SPREADSHEET_ID",
+          "mode": "list",
+          "cachedResultName": "Influencer Extraction & Qualification Agent",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/YOUR_SPREADSHEET_ID/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Sheet1",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/YOUR_SPREADSHEET_ID/edit#gid=0"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "id": "={{ $node[\"PostgreSQL Primary Source1\"].json.id }}",
+            "name": "={{ $node[\"PostgreSQL Primary Source1\"].json.raw_handle }}",
+            "linkedin_url": "={{ 'https://www.linkedin.com/in/' + $node[\"PostgreSQL Primary Source1\"].json.raw_handle }}",
+            "email": "={{ $node[\"PostgreSQL Primary Source1\"].json.email }}",
+            "niche": "={{ $node[\"PostgreSQL Primary Source1\"].json.industry }}",
+            "followers": "={{ $node[\"PostgreSQL Primary Source1\"].json.follower_count }}",
+            "qualification_score": "={{ $json.output }}",
+            "qualification_status": "={{ $json.output == 'LOW' ? 'REJECTED' : 'APPROVED' }}"
+          },
+          "matchingColumns": [
+            "id"
+          ],
+          "schema": [
+            {
+              "id": "id",
+              "displayName": "id",
+              "required": false,
+              "defaultMatch": true,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "name",
+              "displayName": "name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "linkedin_url",
+              "displayName": "linkedin_url",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "email",
+              "displayName": "email",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "niche",
+              "displayName": "niche",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "followers",
+              "displayName": "followers",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "engagement_score",
+              "displayName": "engagement_score",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "qualification_score",
+              "displayName": "qualification_score",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "qualification_status",
+              "displayName": "qualification_status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "company",
+              "displayName": "company",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "location",
+              "displayName": "location",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "bio",
+              "displayName": "bio",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "normalized_url",
+              "displayName": "normalized_url",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "processed_at",
+              "displayName": "processed_at",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "output",
+              "displayName": "output",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "72508037-50da-4527-a3dc-bd1a28381ec7",
+      "name": "Google Sheets Output1",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4,
+      "position": [
+        3216,
+        -384
+      ]
+    },
+    {
+      "parameters": {
+        "authentication": "oAuth2",
+        "select": "channel",
+        "channelId": {
+          "__rl": true,
+          "value": "C0B2K5H9Q87",
+          "mode": "list",
+          "cachedResultName": "all-infinity"
+        },
+        "text": "\u274c Validation failed for handle: {{$json.raw_handle || 'UNKNOWN'}}",
+        "otherOptions": {}
+      },
+      "id": "c6add78f-aaa7-4a9c-a990-0790bcf9a69a",
+      "name": "Slack Error Log1",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2,
+      "position": [
+        1264,
+        -144
+      ],
+      "webhookId": "6786233c-7ffc-4a5b-b1bf-7c56c409c5b2"
+    },
+    {
+      "parameters": {
+        "authentication": "oAuth2",
+        "select": "channel",
+        "channelId": {
+          "__rl": true,
+          "value": "C0B2K5H9Q87",
+          "mode": "list",
+          "cachedResultName": "all-infinity"
+        },
+        "text": "\u26a0\ufe0f Duplicate skipped: {{ $json.raw_handle }}",
+        "otherOptions": {}
+      },
+      "id": "efb749f2-49fb-4e48-9e85-319695805ca8",
+      "name": "Slack Duplicate Log1",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2,
+      "position": [
+        1712,
+        -144
+      ],
+      "webhookId": "0bba95bb-757f-4245-ada8-3126361210d1"
+    },
+    {
+      "parameters": {
+        "operation": "Run actor and get dataset",
+        "actorId": {
+          "__rl": true,
+          "value": "LQQIXN9Othf8f7R5n",
+          "mode": "list",
+          "cachedResultName": "Profile Posts Scraper for LinkedIn [No Cookies] (apimaestro/linkedin-profile-posts)",
+          "cachedResultUrl": "https://console.apify.com/actors/LQQIXN9Othf8f7R5n/input"
+        }
+      },
+      "type": "@apify/n8n-nodes-apify.apify",
+      "typeVersion": 1,
+      "position": [
+        2144,
+        -384
+      ],
+      "id": "4cb964d6-0ada-40c4-854e-98543895b592",
+      "name": "Run an Actor and get dataset"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=# ROLE\nYou are a strict, high-speed Data Classification Agent specializing in B2B Influencer Marketing and Pipeline Lead Qualification. Your single responsibility is to evaluate an influencer's industry niche and determine their commercial value tier.\n\n# OPERATIONAL OBJECTIVE\nAnalyze the incoming influencer industry value provided in the context. Classify the value into exactly one of three tiers: HIGH, MEDIUM, or LOW.\n\n# CLASSIFICATION MATRIX\n- HIGH: High-ticket business sectors, software development, AI/tech ecosystems, corporate enterprise, financial services, executive coaching, or niche engineering fields. (e.g., \"business\", \"saas\", \"tech\", \"finance\").\n- MEDIUM: General professional spaces, marketing agencies, content creation frameworks, professional career growth, design, or specialized productivity. (e.g., \"marketing\", \"growth\", \"productivity\").\n- LOW: Broad entertainment, personal lifestyle, generic hobbies, non-commercial interests, or unverified categories.\n\n# INPUT CONTEXT\nNiche/Industry to evaluate: {{$json.normalized_industry || $json.industry}}\n\n# OUTPUT CONSTRAINT (STRICT)\n- You must return exactly ONE word.\n- Choose ONLY from: HIGH, MEDIUM, or LOW.\n- Do NOT include a period, markdown formatting, quotes, explanations, or whitespace. \n- Failure to comply breaks the downstream automation pipeline.",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        2608,
+        -384
+      ],
+      "id": "39f56df2-dae7-4501-9421-f2c173e8a56f",
+      "name": "AI Agent"
+    },
+    {
+      "parameters": {
+        "modelName": "models/gemini-2.5-flash",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1.1,
+      "position": [
+        2560,
+        -160
+      ],
+      "id": "dcaee6ca-1628-4b73-923a-ad8e6456df1d",
+      "name": "Google Gemini Chat Model"
+    }
+  ],
+  "connections": {
+    "Webhook Trigger2": {
+      "main": [
+        [
+          {
+            "node": "PostgreSQL Primary Source1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "PostgreSQL Primary Source1": {
+      "main": [
+        [
+          {
+            "node": "Validation Gate1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validation Gate1": {
+      "main": [
+        [
+          {
+            "node": "Duplicate Check2",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Slack Error Log1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Duplicate Check2": {
+      "main": [
+        [
+          {
+            "node": "Is Unique?1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Is Unique?1": {
+      "main": [
+        [
+          {
+            "node": "Slack Duplicate Log1",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Split In Batches2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Split In Batches2": {
+      "main": [
+        [
+          {
+            "node": "Run an Actor and get dataset",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Normalization Code Node1": {
+      "main": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Rate Control Wait1": {
+      "main": [
+        [
+          {
+            "node": "Google Sheets Output1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Run an Actor and get dataset": {
+      "main": [
+        [
+          {
+            "node": "Normalization Code Node1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent": {
+      "main": [
+        [
+          {
+            "node": "Rate Control Wait1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Gemini Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {
+    "Run an Actor and get dataset": [
+      {
+        "id": 1,
+        "raw_handle": "alexhormozi",
+        "platform": "linkedin",
+        "follower_count": 850000,
+        "email": "alex@example.com",
+        "country": "USA",
+        "industry": "business",
+        "apify_status": "SUCCESS",
+        "scraped_at": "2026-05-22T07:45:00Z"
+      },
+      {
+        "id": 2,
+        "raw_handle": "justinwelsh",
+        "platform": "linkedin",
+        "follower_count": 450000,
+        "email": "justin@example.com",
+        "country": "USA",
+        "industry": "marketing",
+        "apify_status": "SUCCESS",
+        "scraped_at": "2026-05-22T07:45:10Z"
+      }
+    ],
+    "AI Agent": [
+      {
+        "output": "HIGH"
+      },
+      {
+        "output": "MEDIUM"
+      }
+    ]
+  },
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "a90343fa43e1bff8f27b82db8d1553e8d27a1fc9a77d116f396231b4064d5a85"
+  }
+}
