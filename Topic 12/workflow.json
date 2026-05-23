@@ -1,0 +1,400 @@
+{
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "0bb146a6-4a7c-4f5c-b5d1-4e135e477c50",
+      "name": "Manual Trigger",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        -656,
+        16
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT * FROM raw_learners WHERE status='pending';",
+        "options": {}
+      },
+      "id": "251bfbc6-9273-4bb4-a8ce-0b8035449496",
+      "name": "Fetch Raw Learners",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        -448,
+        16
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "combinator": "and",
+          "conditions": [
+            {
+              "leftValue": "={{ $json.full_name }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty"
+              }
+            },
+            {
+              "leftValue": "={{ $json.email }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty"
+              }
+            },
+            {
+              "leftValue": "={{ $json.learner_id }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty"
+              }
+            }
+          ],
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 1
+          }
+        },
+        "options": {}
+      },
+      "id": "27a58891-343e-4adb-917a-48659e277571",
+      "name": "Validate Required Fields",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        -224,
+        16
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT \n  COUNT(*)::int AS duplicate_count\nFROM opportunities\nWHERE learner_id = '{{ $json.learner_id }}'\n   OR email = '{{ $json.email }}';",
+        "options": {}
+      },
+      "id": "8be4b55b-a653-4406-95e4-b600088f07af",
+      "name": "Check Duplicates",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        0,
+        -64
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "raw",
+        "jsonOutput": "={\n  \"learner_id\": \"{{ $('Validate Required Fields').item.json.learner_id }}\",\n  \"full_name\": \"{{ $('Validate Required Fields').item.json.full_name }}\",\n  \"email\": \"{{ $('Validate Required Fields').item.json.email.toLowerCase() }}\",\n  \"phone\": \"{{ $('Validate Required Fields').item.json.phone }}\",\n  \"course_interest\": \"{{ $('Validate Required Fields').item.json.course_interest }}\",\n  \"source\": \"{{ $('Validate Required Fields').item.json.source || 'Direct' }}\",\n  \"opportunity_stage\": \"New Lead\",\n  \"lead_score\": {{ ($('Validate Required Fields').item.json.source === 'LinkedIn') ? 90 : 70 }}\n}",
+        "options": {}
+      },
+      "id": "ff22cb05-7c90-48de-bdfb-d7f44f9077a8",
+      "name": "Transform Opportunity Data",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3,
+      "position": [
+        448,
+        -64
+      ]
+    },
+    {
+      "parameters": {
+        "amount": 5,
+        "unit": "seconds"
+      },
+      "id": "655d3307-9017-47ba-b40f-c0be22512be2",
+      "name": "Wait",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1,
+      "position": [
+        672,
+        -64
+      ],
+      "webhookId": "82f2872b-9e7b-4717-8c8c-f655952335f1"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO opportunities (\n  learner_id,\n  full_name,\n  email,\n  phone,\n  opportunity_stage,\n  course_interest,\n  source,\n  lead_score,\n  migration_date\n)\nVALUES (\n  '{{ $json.learner_id }}',\n  '{{ $json.full_name }}',\n  '{{ $json.email }}',\n  '{{ $json.phone }}',\n  '{{ $json.opportunity_stage }}',\n  '{{ $json.course_interest }}',\n  '{{ $json.source }}',\n  {{ $json.lead_score }},\n  NOW()\n);",
+        "options": {}
+      },
+      "id": "503fdec2-e10b-4ce6-9ba3-99781c20f20f",
+      "name": "Insert Opportunity",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        880,
+        -64
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE raw_learners \nSET status='migrated', updated_at=NOW() \nWHERE learner_id='{{ $('Transform Opportunity Data').all()[$position].json.learner_id }}';",
+        "options": {}
+      },
+      "id": "4a019347-2178-4371-b3ec-f8abe2d5f3d5",
+      "name": "Update Learner Status",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        1104,
+        -64
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO workflow_logs (learner_id, workflow_name, status, message)\nVALUES (\n  '{{ $('Transform Opportunity Data').all()[$position].json.learner_id }}',\n  'Learner Migration',\n  'SUCCESS',\n  'Opportunity created successfully'\n);",
+        "options": {}
+      },
+      "id": "25317327-75a9-4264-bb7d-4fab104aabce",
+      "name": "Log Success",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        1328,
+        -64
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO workflow_logs (learner_id, workflow_name, status, message) VALUES ('{{ $json.learner_id }}','Learner Migration','DUPLICATE','Duplicate opportunity skipped');",
+        "options": {}
+      },
+      "id": "b3b307ae-be6d-4ba5-9598-67d512c23fdb",
+      "name": "Log Duplicate",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        448,
+        144
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO workflow_logs (learner_id, workflow_name, status, message) VALUES ('{{ $json.learner_id || 'unknown' }}','Learner Migration','FAILED','Missing required fields');",
+        "options": {}
+      },
+      "id": "5d7c5db6-4a1c-47ab-b626-554e7e33031b",
+      "name": "Log Validation Failure",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        0,
+        144
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "377e04d1-fa5f-4a27-a20e-270c9750f4cd",
+              "leftValue": "={{ $json.duplicate_count }}",
+              "rightValue": "=0",
+              "operator": {
+                "type": "number",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "looseTypeValidation": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        224,
+        -64
+      ],
+      "id": "d1b62105-5d85-43a8-a1b7-2dc43fd107ef",
+      "name": "If"
+    },
+    {
+      "parameters": {
+        "content": "STEP 1 \u2014 RAW LEARNERS EXTRACTION\n\nSource Table:\nraw_learners\n\nOperations:\n- Fetch pending learners\n- Validate required fields\n- Filter invalid records\n\nValidation:\n- learner_id\n- full_name\n- email\n\nStatus Used:\npending",
+        "height": 880,
+        "width": 624,
+        "color": 5
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -720,
+        -416
+      ],
+      "id": "4dd3aa7f-636d-4b08-b187-ab9ea384a365",
+      "name": "Sticky Note"
+    },
+    {
+      "parameters": {
+        "content": "STEP 2 \u2014 DUPLICATE CONTROL & TRANSFORMATION\n\nDuplicate Check:\nopportunities table\n\nConditions:\n- learner_id\n- email\n\nTransformation:\n- opportunity_stage\n- lead_score\n- priority\n- assigned_team\n- migration_date\n\nLogic:\nOnly unique learners continue.",
+        "height": 880,
+        "width": 688,
+        "color": 4
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -32,
+        -416
+      ],
+      "id": "96f6a8b2-c6c8-46eb-a93b-d4b3f8a6a496",
+      "name": "Sticky Note1"
+    },
+    {
+      "parameters": {
+        "content": "STEP 3 \u2014 OPPORTUNITY CREATION & LOGGING\n\nDestination Tables:\n- opportunities\n- workflow_logs\n\nOperations:\n- Insert opportunity\n- Update learner status\n- Log success/failure\n\nFinal Status:\nmigrated\n\nSafety:\nON CONFLICT DO NOTHING",
+        "height": 848,
+        "width": 736,
+        "color": 6
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        800,
+        -384
+      ],
+      "id": "8f25a46b-524a-424e-b14b-ab3b0b7c1fb7",
+      "name": "Sticky Note2"
+    }
+  ],
+  "connections": {
+    "Manual Trigger": {
+      "main": [
+        [
+          {
+            "node": "Fetch Raw Learners",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Raw Learners": {
+      "main": [
+        [
+          {
+            "node": "Validate Required Fields",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Required Fields": {
+      "main": [
+        [
+          {
+            "node": "Check Duplicates",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Log Validation Failure",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Duplicates": {
+      "main": [
+        [
+          {
+            "node": "If",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Transform Opportunity Data": {
+      "main": [
+        [
+          {
+            "node": "Wait",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait": {
+      "main": [
+        [
+          {
+            "node": "Insert Opportunity",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Insert Opportunity": {
+      "main": [
+        [
+          {
+            "node": "Update Learner Status",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update Learner Status": {
+      "main": [
+        [
+          {
+            "node": "Log Success",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If": {
+      "main": [
+        [
+          {
+            "node": "Transform Opportunity Data",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Log Duplicate",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "20935e6e42b4060606f53eded764687ab4300d59de9aceb8bca4fbc698d1c11e"
+  }
+}
