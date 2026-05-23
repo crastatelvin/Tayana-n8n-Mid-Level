@@ -1,0 +1,776 @@
+{
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "triggerAtHour": 9
+            }
+          ]
+        }
+      },
+      "id": "4e5633e8-4bd5-46ac-a211-750223a8bfca",
+      "name": "Daily Schedule",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.3,
+      "position": [
+        240,
+        320
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "select",
+        "schema": {
+          "__rl": true,
+          "mode": "list",
+          "value": "public"
+        },
+        "table": {
+          "__rl": true,
+          "mode": "list",
+          "value": "competition_posts"
+        },
+        "options": {}
+      },
+      "id": "cfa36c1e-7007-48ba-8e2c-e41ed8b05e18",
+      "name": "Fetch Competitor Posts",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        464,
+        320
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "1",
+              "leftValue": "={{ $json.post_url }}",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty"
+              },
+              "rightValue": ""
+            },
+            {
+              "id": "2",
+              "leftValue": "={{ $json.post_content }}",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty"
+              },
+              "rightValue": ""
+            },
+            {
+              "id": "3",
+              "leftValue": "={{ $json.platform }}",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty"
+              },
+              "rightValue": ""
+            }
+          ],
+          "combinator": "or"
+        },
+        "options": {}
+      },
+      "id": "ba7f8ebc-cd93-4a67-a4a7-1f794dfa91ce",
+      "name": "Validate Required Fields",
+      "type": "n8n-nodes-base.filter",
+      "typeVersion": 2.3,
+      "position": [
+        688,
+        320
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "1",
+              "name": "message",
+              "value": "All competitor posts analyzed successfully",
+              "type": "string"
+            },
+            {
+              "id": "2",
+              "name": "completed_at",
+              "value": "={{ $now.toISO() }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "813106cd-9623-45fd-add9-fdbb28287b8c",
+      "name": "Batch Complete Summary",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1136,
+        128
+      ],
+      "executeOnce": true
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Analyze this competitor post from {{ $json.competitor_name }} on {{ $json.platform }}:\n\nPost URL: {{ $json.post_url }}\nPosted Date: {{ $json.posted_date }}\nOriginal Content: {{ $json.content }}\nScraped Content: {{ $json.scraped_text }}\nEngagement Metrics:\n- Likes: {{ $json.scraped_likes }}\n- Comments: {{ $json.scraped_comments }}\n- Shares: {{ $json.scraped_shares }}\n\nProvide a comprehensive competitive analysis including:\n1. Sentiment analysis (positive/negative/neutral)\n2. Key topics and themes (as array)\n3. Predicted engagement level (low/medium/high)\n4. Competitive threat assessment (low/medium/high/critical)\n5. Recommended response strategy\n6. Executive summary",
+        "hasOutputParser": true,
+        "options": {
+          "systemMessage": "You are a competitive intelligence analyst specializing in social media and market positioning. Analyze competitor posts to identify strategic insights, market trends, and potential threats. Provide actionable recommendations based on the analysis. Always return structured JSON output matching the schema.",
+          "maxIterations": 5
+        }
+      },
+      "id": "933b5023-5bcf-49dd-9178-04c1cfe035b5",
+      "name": "Analyze Competitor Post",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        1840,
+        320
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "1",
+              "name": "post_id",
+              "value": "={{ $(\"Merge Scraped Data\").item.json.id }}",
+              "type": "number"
+            },
+            {
+              "id": "2",
+              "name": "competitor_name",
+              "value": "={{ $(\"Merge Scraped Data\").item.json.competitor_name }}",
+              "type": "string"
+            },
+            {
+              "id": "3",
+              "name": "platform",
+              "value": "={{ $(\"Merge Scraped Data\").item.json.platform }}",
+              "type": "string"
+            },
+            {
+              "id": "4",
+              "name": "post_url",
+              "value": "={{ $(\"Merge Scraped Data\").item.json.post_url }}",
+              "type": "string"
+            },
+            {
+              "id": "5",
+              "name": "posted_date",
+              "value": "={{ $(\"Merge Scraped Data\").item.json.posted_date }}",
+              "type": "string"
+            },
+            {
+              "id": "6",
+              "name": "sentiment",
+              "value": "={{ $json.output.sentiment }}",
+              "type": "string"
+            },
+            {
+              "id": "7",
+              "name": "key_topics",
+              "value": "={{ $json.output.key_topics.join(\", \") }}",
+              "type": "string"
+            },
+            {
+              "id": "8",
+              "name": "engagement_prediction",
+              "value": "={{ $json.output.engagement_prediction }}",
+              "type": "string"
+            },
+            {
+              "id": "9",
+              "name": "threat_level",
+              "value": "={{ $json.output.competitive_threat_level }}",
+              "type": "string"
+            },
+            {
+              "id": "10",
+              "name": "recommended_response",
+              "value": "={{ $json.output.recommended_response }}",
+              "type": "string"
+            },
+            {
+              "id": "11",
+              "name": "summary",
+              "value": "={{ $json.output.summary }}",
+              "type": "string"
+            },
+            {
+              "id": "12",
+              "name": "analyzed_at",
+              "value": "={{ $now.toISO() }}",
+              "type": "string"
+            },
+            {
+              "id": "13",
+              "name": "status",
+              "value": "analyzed",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "e139a265-4fcb-4f12-8f17-74287b9f188e",
+      "name": "Format Analysis Results",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        2304,
+        320
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "{{ \"UPDATE competition_posts SET status = 'analyzed', analyzed_at = NOW() WHERE id = \" + $json.post_id }}",
+        "options": {}
+      },
+      "id": "37aa1051-267e-41dc-ad6d-fcd7d51edefa",
+      "name": "Update Post Status",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        2752,
+        320
+      ]
+    },
+    {
+      "parameters": {
+        "amount": 2
+      },
+      "id": "48a3158c-cd05-474b-a03d-b902f7d3135b",
+      "name": "Rate Limit Wait",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        2976,
+        496
+      ],
+      "webhookId": "c0c3dcf9-4d3a-455e-8656-b13bb020e5bb"
+    },
+    {
+      "parameters": {
+        "batchSize": 5,
+        "options": {}
+      },
+      "id": "02927cea-fd03-4dc7-839e-c95ba8b18078",
+      "name": "Process in Batches",
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        912,
+        320
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "1",
+              "name": "id",
+              "value": "={{ $(\"Fetch Competitor Posts\").item.json.id }}",
+              "type": "number"
+            },
+            {
+              "id": "2",
+              "name": "competitor_name",
+              "value": "={{ $(\"Fetch Competitor Posts\").item.json.competitor_name }}",
+              "type": "string"
+            },
+            {
+              "id": "3",
+              "name": "platform",
+              "value": "={{ $(\"Fetch Competitor Posts\").item.json.platform }}",
+              "type": "string"
+            },
+            {
+              "id": "4",
+              "name": "post_url",
+              "value": "={{ $(\"Fetch Competitor Posts\").item.json.post_url }}",
+              "type": "string"
+            },
+            {
+              "id": "5",
+              "name": "posted_date",
+              "value": "={{ $(\"Fetch Competitor Posts\").item.json.posted_at }}",
+              "type": "string"
+            },
+            {
+              "id": "6",
+              "name": "content",
+              "value": "={{ $(\"Fetch Competitor Posts\").item.json.post_content }}",
+              "type": "string"
+            },
+            {
+              "id": "7",
+              "name": "scraped_likes",
+              "value": "={{ $json.likes }}",
+              "type": "number"
+            },
+            {
+              "id": "8",
+              "name": "scraped_comments",
+              "value": "={{ $json.comments }}",
+              "type": "number"
+            },
+            {
+              "id": "9",
+              "name": "scraped_shares",
+              "value": "={{ $json.shares }}",
+              "type": "number"
+            },
+            {
+              "id": "10",
+              "name": "scraped_text",
+              "value": "={{ $json.text }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "1d66d508-87e3-42ac-8bee-6dee4ffc3db7",
+      "name": "Merge Scraped Data",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1584,
+        320
+      ]
+    },
+    {
+      "parameters": {
+        "modelName": "models/gemini-2.5-flash",
+        "options": {
+          "temperature": 0.2
+        }
+      },
+      "id": "0d9cb505-a70f-4e6d-ab59-592b93e7987c",
+      "name": "Google Gemini Model",
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1.1,
+      "position": [
+        1808,
+        544
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "YOUR_SPREADSHEET_ID",
+          "mode": "list",
+          "cachedResultName": "competition_analysis_output",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/YOUR_SPREADSHEET_ID/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Sheet1",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/YOUR_SPREADSHEET_ID/edit#gid=0"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "post_id": "={{ $json.post_id }}",
+            "competitor_name": "={{ $json.competitor_name }}",
+            "platform": "={{ $json.platform }}",
+            "sentiment": "={{ $json.sentiment }}",
+            "processed_at": "={{ $json.analyzed_at }}",
+            "recommendation": "={{ $json.recommended_response }}",
+            "ai_summary": "={{ $json.summary }}",
+            "content_type": "={{ $json.key_topics }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "post_id",
+              "displayName": "post_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "competitor_name",
+              "displayName": "competitor_name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "platform",
+              "displayName": "platform",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "sentiment",
+              "displayName": "sentiment",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "content_type",
+              "displayName": "content_type",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "engagement_score",
+              "displayName": "engagement_score",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "ai_summary",
+              "displayName": "ai_summary",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "recommendation",
+              "displayName": "recommendation",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "processed_at",
+              "displayName": "processed_at",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "d9b76710-ea11-4302-b348-0bb91d732f20",
+      "name": "Write Analysis to Google Sheets",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        2528,
+        320
+      ]
+    },
+    {
+      "parameters": {
+        "actorId": {
+          "__rl": true,
+          "value": "AgfKk0sQQxkpQJ1Dt",
+          "mode": "list",
+          "cachedResultName": "LinkedIn Profile Scraper for cheap lead enrichment \u2705 (anchor/linkedin-profile-enrichment)",
+          "cachedResultUrl": "https://console.apify.com/actors/AgfKk0sQQxkpQJ1Dt/input"
+        },
+        "customBody": "{\n  \"startUrls\": [\n    {\n      \"url\": \"https://www.linkedin.com/posts/competitor-a-123456\"\n    }\n  ],\n  \"maxPosts\": 1,\n  \"scrapeComments\": true,\n  \"scrapeReactions\": true\n}",
+        "authentication": "apifyOAuth2Api"
+      },
+      "type": "@apify/n8n-nodes-apify.apify",
+      "typeVersion": 1,
+      "position": [
+        1136,
+        320
+      ],
+      "id": "096fadc0-198d-496e-8f7a-8f8d790c6310",
+      "name": "Run an Actor"
+    },
+    {
+      "parameters": {
+        "resource": "Datasets",
+        "datasetId": "={{ $json.defaultDatasetId ?? \"\" }}",
+        "options": {},
+        "authentication": "apifyOAuth2Api"
+      },
+      "type": "@apify/n8n-nodes-apify.apify",
+      "typeVersion": 1,
+      "position": [
+        1360,
+        320
+      ],
+      "id": "282bb692-3b4d-4e84-ae29-895f12396962",
+      "name": "Get dataset items"
+    },
+    {
+      "parameters": {
+        "jsonSchemaExample": "{\n  \"sentiment\": \"positive\",\n  \"key_topics\": [\"product launch\", \"innovation\", \"market expansion\"],\n  \"engagement_prediction\": \"high\",\n  \"competitive_threat_level\": \"medium\",\n  \"recommended_response\": \"Monitor closely and prepare counter-messaging\",\n  \"summary\": \"Competitor announced new product with strong market positioning\"\n}",
+        "autoFix": true
+      },
+      "id": "d118aa86-6979-4e0c-832a-20f243a385ce",
+      "name": "Analysis Output Parser",
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1.3,
+      "position": [
+        1936,
+        544
+      ]
+    },
+    {
+      "parameters": {
+        "modelName": "models/gemini-2.0-flash",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1.1,
+      "position": [
+        2016,
+        752
+      ],
+      "id": "d4c0c4ea-8f1c-4524-b2df-c13e86f603d9",
+      "name": "Google Gemini Chat Model"
+    }
+  ],
+  "connections": {
+    "Daily Schedule": {
+      "main": [
+        [
+          {
+            "node": "Fetch Competitor Posts",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Competitor Posts": {
+      "main": [
+        [
+          {
+            "node": "Validate Required Fields",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Required Fields": {
+      "main": [
+        [
+          {
+            "node": "Process in Batches",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Analyze Competitor Post": {
+      "main": [
+        [
+          {
+            "node": "Format Analysis Results",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Analysis Results": {
+      "main": [
+        [
+          {
+            "node": "Write Analysis to Google Sheets",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update Post Status": {
+      "main": [
+        [
+          {
+            "node": "Rate Limit Wait",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Rate Limit Wait": {
+      "main": [
+        [
+          {
+            "node": "Process in Batches",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Process in Batches": {
+      "main": [
+        [
+          {
+            "node": "Batch Complete Summary",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Run an Actor",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge Scraped Data": {
+      "main": [
+        [
+          {
+            "node": "Analyze Competitor Post",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Gemini Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Analyze Competitor Post",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Write Analysis to Google Sheets": {
+      "main": [
+        [
+          {
+            "node": "Update Post Status",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Run an Actor": {
+      "main": [
+        [
+          {
+            "node": "Get dataset items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get dataset items": {
+      "main": [
+        [
+          {
+            "node": "Merge Scraped Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Analysis Output Parser": {
+      "ai_outputParser": [
+        [
+          {
+            "node": "Analyze Competitor Post",
+            "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Gemini Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Analysis Output Parser",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {
+    "Run an Actor": [
+      {
+        "post_url": "https://www.linkedin.com/posts/competitor-a-123456",
+        "platform": "LinkedIn",
+        "competitor_name": "CompetitorA"
+      }
+    ],
+    "Get dataset items": [
+      {
+        "url": "https://www.linkedin.com/posts/competitor-a-123456",
+        "text": "Excited to announce our new AI-powered analytics dashboard! \ud83d\ude80 Real-time insights for modern teams.",
+        "author": "CompetitorA",
+        "timestamp": "2024-01-15T10:30:00Z",
+        "likes": 245,
+        "comments": 32,
+        "shares": 18,
+        "engagement_rate": 12.5,
+        "hashtags": [
+          "AI",
+          "Analytics",
+          "Dashboard"
+        ],
+        "media_type": "image",
+        "platform": "LinkedIn"
+      }
+    ]
+  },
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "20935e6e42b4060606f53eded764687ab4300d59de9aceb8bca4fbc698d1c11e"
+  }
+}
