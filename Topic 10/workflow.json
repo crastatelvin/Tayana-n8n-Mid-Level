@@ -1,0 +1,552 @@
+{
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "4150fadf-22fc-4bea-a1ad-459a19be38dd",
+      "name": "Start Workflow",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        224,
+        416
+      ]
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "YOUR_SPREADSHEET_ID",
+          "mode": "list",
+          "cachedResultName": "Competitor_Analysis",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/YOUR_SPREADSHEET_ID/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Sheet1",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/YOUR_SPREADSHEET_ID/edit#gid=0"
+        }
+      },
+      "id": "8f31e150-d8eb-4a07-96fa-ca9b9794b91a",
+      "name": "Read Competitor Analysis",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        448,
+        416
+      ]
+    },
+    {
+      "parameters": {
+        "aggregate": "aggregateAllItemData",
+        "destinationFieldName": "competitorInsights",
+        "options": {}
+      },
+      "id": "268f3a97-1954-4eef-a86d-611965c6b92c",
+      "name": "Aggregate Insights",
+      "type": "n8n-nodes-base.aggregate",
+      "typeVersion": 1,
+      "position": [
+        672,
+        416
+      ]
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=You are an expert marketing strategist. Analyze the following competitor insights and generate actionable marketing recommendations.\n\nCompetitor Insights:\n{{ JSON.stringify($json.competitorInsights, null, 2) }}\n\nFor each insight, generate 1-3 specific, actionable marketing recommendations. Each recommendation must include:\n- title: A clear, action-oriented title\n- rationale: Why this recommendation matters based on the competitor insight\n- category: The type of marketing activity (e.g., Content Creation, Social Media, SEO, Paid Ads, Email Marketing)\n- priority: High, Medium, or Low\n- ice_score: A score from 1-10 representing Impact \u00d7 Confidence \u00f7 Effort (higher is better)\n- owner_role: The team or role responsible (e.g., Content Team, Social Media Manager, SEO Specialist)\n- due_days: Number of days to complete this recommendation\n- source_insight: The original competitor insight that led to this recommendation\n\nReturn your response as a JSON object with a \"recommendations\" array containing all recommendations.",
+        "hasOutputParser": true,
+        "options": {
+          "systemMessage": "You are a marketing strategist who converts competitor analysis into prioritized, actionable recommendations. Always respond with structured JSON output matching the schema provided."
+        }
+      },
+      "id": "5cd0230a-be83-4eaa-8130-43bdd1a7654d",
+      "name": "Marketing Strategist Agent",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        896,
+        416
+      ]
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "mode": "list",
+          "value": "gpt-5-mini"
+        },
+        "builtInTools": {},
+        "options": {}
+      },
+      "id": "9d4ba26d-e4b2-44b1-a37d-58d850ffc54e",
+      "name": "OpenAI GPT Model",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.3,
+      "position": [
+        896,
+        640
+      ]
+    },
+    {
+      "parameters": {},
+      "id": "cf52d819-127c-4185-8a09-da36e3a0e669",
+      "name": "Structured Output Parser",
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1.3,
+      "position": [
+        1024,
+        640
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Extract recommendations from AI agent output by parsing the stringified state\nconst items = $input.all();\nconst recommendations = [];\n\nfor (const item of items) {\n  const output = item.json.output;\n  \n  if (output && output.state) {\n    try {\n      // Parse the stringified JSON state object\n      const parsedState = JSON.parse(output.state);\n      \n      if (parsedState && parsedState.recommendations && Array.isArray(parsedState.recommendations)) {\n        recommendations.push(...parsedState.recommendations);\n      } else if (Array.isArray(parsedState)) {\n        recommendations.push(...parsedState);\n      }\n    } catch (e) {\n      // Fallback if parsing fails or state isn't a string\n      console.error(\"Failed to parse output.state:\", e);\n    }\n  } \n  // Keep your original fallbacks just in case the AI format shifts\n  else if (output && output.recommendations && Array.isArray(output.recommendations)) {\n    recommendations.push(...output.recommendations);\n  } else if (output && Array.isArray(output)) {\n    recommendations.push(...output);\n  }\n}\n\n// Return each recommendation as a separate item\nreturn recommendations.map(rec => ({ json: rec }));"
+      },
+      "id": "c2202b19-9bbe-4845-b1d9-7bacdfb639b3",
+      "name": "Extract Recommendations",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1248,
+        416
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "1",
+              "leftValue": "={{ $json.title }}",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty"
+              }
+            },
+            {
+              "id": "2",
+              "leftValue": "={{ $json.rationale }}",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty"
+              }
+            },
+            {
+              "id": "3",
+              "leftValue": "={{ $json.category }}",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "690d5fdf-d934-4aa0-8cd4-98d2c4ba8654",
+      "name": "Filter Valid Recommendations",
+      "type": "n8n-nodes-base.filter",
+      "typeVersion": 2.3,
+      "position": [
+        1472,
+        416
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "1",
+              "name": "Title",
+              "value": "={{ $json.title }}",
+              "type": "string"
+            },
+            {
+              "id": "2",
+              "name": "Rationale",
+              "value": "={{ $json.rationale }}",
+              "type": "string"
+            },
+            {
+              "id": "3",
+              "name": "Category",
+              "value": "={{ $json.category }}",
+              "type": "string"
+            },
+            {
+              "id": "4",
+              "name": "Priority",
+              "value": "={{ $json.priority }}",
+              "type": "string"
+            },
+            {
+              "id": "5",
+              "name": "ICE_Score",
+              "value": "={{ $json.ice_score }}",
+              "type": "number"
+            },
+            {
+              "id": "6",
+              "name": "Owner_Role",
+              "value": "={{ $json.owner_role }}",
+              "type": "string"
+            },
+            {
+              "id": "7",
+              "name": "Due_Days",
+              "value": "={{ $json.due_days }}",
+              "type": "number"
+            },
+            {
+              "id": "8",
+              "name": "Source_Insight",
+              "value": "={{ $json.source_insight }}",
+              "type": "string"
+            },
+            {
+              "id": "9",
+              "name": "Generated_Date",
+              "value": "={{ $now.toFormat(\"yyyy-MM-dd HH:mm:ss\") }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "ae2695bb-bb0a-4537-b813-9f2634e4931d",
+      "name": "Prepare Sheet Data",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1696,
+        416
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "YOUR_SPREADSHEET_ID",
+          "mode": "list",
+          "cachedResultName": "Competitor_Analysis",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/YOUR_SPREADSHEET_ID/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 752790092,
+          "mode": "list",
+          "cachedResultName": "Sheet2",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/YOUR_SPREADSHEET_ID/edit#gid=752790092"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Title": "={{ $json.Title }}",
+            "Rationale": "={{ $json.Rationale }}",
+            "Category": "={{ $json.Category }}",
+            "Priority": "={{ $json.Priority }}",
+            "ICE_Score": "={{ $json.ICE_Score }}",
+            "Owner_Role": "={{ $json.Owner_Role }}",
+            "Due_Days": "={{ $json.Due_Days }}",
+            "Source_Insight": "={{ $json.Source_Insight }}",
+            "Generated_Date": "={{ $json.Generated_Date }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "Title",
+              "displayName": "Title",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Rationale",
+              "displayName": "Rationale",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Category",
+              "displayName": "Category",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Priority",
+              "displayName": "Priority",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "ICE_Score",
+              "displayName": "ICE_Score",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Owner_Role",
+              "displayName": "Owner_Role",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Due_Days",
+              "displayName": "Due_Days",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Source_Insight",
+              "displayName": "Source_Insight",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Generated_Date",
+              "displayName": "Generated_Date",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "ff72cea7-4d92-4a86-957a-b995c00729b7",
+      "name": "Write to Recommendation Tracker",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        1920,
+        416
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "1",
+              "name": "execution_id",
+              "value": "={{ $execution.id }}",
+              "type": "string"
+            },
+            {
+              "id": "2",
+              "name": "execution_time",
+              "value": "={{ $now.toISO() }}",
+              "type": "string"
+            },
+            {
+              "id": "3",
+              "name": "recommendations_generated",
+              "value": "={{ $(\"Extract Recommendations\").all().length }}",
+              "type": "number"
+            },
+            {
+              "id": "4",
+              "name": "valid_recommendations",
+              "value": "={{ $(\"Filter Valid Recommendations\").all().length }}",
+              "type": "number"
+            },
+            {
+              "id": "5",
+              "name": "status",
+              "value": "Success",
+              "type": "string"
+            },
+            {
+              "id": "6",
+              "name": "message",
+              "value": "={{ $(\"Filter Valid Recommendations\").all().length }} recommendations written to tracker",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "e7a0e9ca-1948-47b7-ac61-a15698ba7ce0",
+      "name": "Log Run Outcome",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        2144,
+        416
+      ]
+    }
+  ],
+  "connections": {
+    "Start Workflow": {
+      "main": [
+        [
+          {
+            "node": "Read Competitor Analysis",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read Competitor Analysis": {
+      "main": [
+        [
+          {
+            "node": "Aggregate Insights",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Aggregate Insights": {
+      "main": [
+        [
+          {
+            "node": "Marketing Strategist Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Marketing Strategist Agent": {
+      "main": [
+        [
+          {
+            "node": "Extract Recommendations",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI GPT Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Marketing Strategist Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Structured Output Parser": {
+      "ai_outputParser": [
+        [
+          {
+            "node": "Marketing Strategist Agent",
+            "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Recommendations": {
+      "main": [
+        [
+          {
+            "node": "Filter Valid Recommendations",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Filter Valid Recommendations": {
+      "main": [
+        [
+          {
+            "node": "Prepare Sheet Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Sheet Data": {
+      "main": [
+        [
+          {
+            "node": "Write to Recommendation Tracker",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Write to Recommendation Tracker": {
+      "main": [
+        [
+          {
+            "node": "Log Run Outcome",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {
+    "Marketing Strategist Agent": [
+      {
+        "output": {
+          "state": "{\"recommendations\":[{\"title\":\"Produce a short-form reel series on practical prompt engineering\",\"rationale\":\"Competitors show high engagement for short practical prompt engineering videos; a focused reel series demonstrates expertise and captures high-reach short-form audiences.\",\"category\":\"Content Creation\",\"priority\":\"High\",\"ice_score\":9,\"owner_role\":\"Video Content Team\",\"due_days\":7,\"source_insight\":\"Competitors are publishing short-form reels about prompt engineering.\"},{\"title\":\"Repurpose reels into platform-native shorts (TikTok, LinkedIn, Instagram)\",\"rationale\":\"Repurposing successful short videos across platforms increases reach with minimal extra production effort, matching competitor multi-platform reuse tactics.\",\"category\":\"Content Repurposing\",\"priority\":\"High\",\"ice_score\":8,\"owner_role\":\"Social Media Manager\",\"due_days\":5,\"source_insight\":\"Competitors are publishing short-form reels about prompt engineering.\"},{\"title\":\"Publish LinkedIn AI workflow carousel templates\",\"rationale\":\"Competitors\u2019 AI workflow carousels get strong saves and shares; creating repeatable carousel templates educates the audience and drives saves/shares for organic reach.\",\"category\":\"Content Creation\",\"priority\":\"High\",\"ice_score\":8,\"owner_role\":\"Content Team (LinkedIn Lead)\",\"due_days\":10,\"source_insight\":\"Competitors are posting AI workflow breakdown carousels on LinkedIn.\"},{\"title\":\"Offer downloadable mini-guides for each carousel as lead magnets\",\"rationale\":\"Educational carousel content is high-engagement; pairing carousels with gated mini-guides converts engaged viewers into leads.\",\"category\":\"Lead Magnets\",\"priority\":\"Medium\",\"ice_score\":7,\"owner_role\":\"Growth/Product Marketing\",\"due_days\":14,\"source_insight\":\"Competitors are posting AI workflow breakdown carousels on LinkedIn.\"},{\"title\":\"Launch a founder-led storytelling cadence (weekly posts)\",\"rationale\":\"Founder stories increase human connection and engagement; a regular cadence builds audience familiarity and trust.\",\"category\":\"Personal Branding\",\"priority\":\"Medium\",\"ice_score\":7,\"owner_role\":\"Founder / Content Team\",\"due_days\":14,\"source_insight\":\"Competitors are using founder-led storytelling posts.\"},{\"title\":\"Create short BTS founder video snippets for social\",\"rationale\":\"Short behind-the-scenes clips amplify authenticity and are easier to produce than long essays, increasing reach while keeping the founder visible.\",\"category\":\"Social Media\",\"priority\":\"Medium\",\"ice_score\":6,\"owner_role\":\"Social Media Manager / Video Editor\",\"due_days\":7,\"source_insight\":\"Competitors are using founder-led storytelling posts.\"},{\"title\":\"Start a weekly curated AI tools newsletter\",\"rationale\":\"Competitors\u2019 weekly AI tool newsletters improve retention; a curated newsletter drives repeat traffic and positions us as an industry resource.\",\"category\":\"Email Marketing\",\"priority\":\"High\",\"ice_score\":8,\"owner_role\":\"Email Marketing Manager\",\"due_days\":10,\"source_insight\":\"Competitors are sending weekly AI tool newsletters.\"},{\"title\":\"A/B test newsletter formats and subject lines for retention\",\"rationale\":\"Optimizing format and subject lines will increase open and click rates, improving the effectiveness of the weekly newsletter over time.\",\"category\":\"Email Marketing\",\"priority\":\"Medium\",\"ice_score\":7,\"owner_role\":\"Growth / Email Specialist\",\"due_days\":21,\"source_insight\":\"Competitors are sending weekly AI tool newsletters.\"},{\"title\":\"Publish a long-form pillar: \u2018Best AI Agents\u2019 comparison guide\",\"rationale\":\"Competitors rank for \u2018best AI agents\u2019; a thorough, updated comparison with SEO best practices will capture organic search traffic and authority.\",\"category\":\"SEO\",\"priority\":\"High\",\"ice_score\":9,\"owner_role\":\"SEO Specialist / Content Writer\",\"due_days\":21,\"source_insight\":\"Competitors are ranking blog articles for \u201cbest AI agents\u201d.\"},{\"title\":\"Create comparison pages with structured data and internal linking\",\"rationale\":\"Schema and targeted internal links help search visibility and CTR; competitors\u2019 long-form comparison strategy drives organic growth.\",\"category\":\"SEO\",\"priority\":\"Medium\",\"ice_score\":8,\"owner_role\":\"SEO Specialist / Developer\",\"due_days\":14,\"source_insight\":\"Competitors are ranking blog articles for \u201cbest AI agents\u201d.\"},{\"title\":\"Build a gated prompt template library to drive email signups\",\"rationale\":\"Competitors\u2019 free downloadable prompt templates significantly increase signups; a high-quality gated library will grow the email list and fuel nurture flows.\",\"category\":\"Lead Magnets\",\"priority\":\"High\",\"ice_score\":9,\"owner_role\":\"Product Marketing / Content Team\",\"due_days\":14,\"source_insight\":\"Competitors are using free downloadable prompt templates.\"},{\"title\":\"Segment prompt templates by role/industry and create targeted CTAs\",\"rationale\":\"Offering industry- or role-specific templates increases perceived relevance and conversion rates compared to a one-size-fits-all asset.\",\"category\":\"Lead Magnets\",\"priority\":\"Medium\",\"ice_score\":7,\"owner_role\":\"Growth / Content Team\",\"due_days\":21,\"source_insight\":\"Competitors are using free downloadable prompt templates.\"},{\"title\":\"Host weekly live AI workshops and publish replays\",\"rationale\":\"Competitors\u2019 Friday workshops build trust and conversions; live workshops create immediacy and repurposed replays provide evergreen educational content.\",\"category\":\"Community Building\",\"priority\":\"High\",\"ice_score\":8,\"owner_role\":\"Community Manager / Training Lead\",\"due_days\":14,\"source_insight\":\"Competitors are hosting live AI workshops every Friday.\"},{\"title\":\"Create a members-only hub for workshop replays and templates\",\"rationale\":\"A gated hub increases perceived value, drives memberships or newsletter signups, and deepens community engagement.\",\"category\":\"Community Building\",\"priority\":\"Medium\",\"ice_score\":7,\"owner_role\":\"Product / Community Team\",\"due_days\":30,\"source_insight\":\"Competitors are hosting live AI workshops every Friday.\"},{\"title\":\"Standardize a repurposing workflow: YouTube long-form \u2192 shorts \u2192 LinkedIn clips\",\"rationale\":\"Competitors repurpose YouTube clips into LinkedIn shorts for high reach with low marginal cost; a standardized workflow maximizes content ROI.\",\"category\":\"Content Repurposing\",\"priority\":\"High\",\"ice_score\":9,\"owner_role\":\"Content Operations / Video Editor\",\"due_days\":7,\"source_insight\":\"Competitors are repurposing YouTube clips into LinkedIn shorts.\"},{\"title\":\"Create an editing template and posting calendar for multi-platform clips\",\"rationale\":\"Templates and a calendar reduce production friction and ensure consistent cross-platform distribution to grow reach.\",\"category\":\"Content Repurposing\",\"priority\":\"Medium\",\"ice_score\":7,\"owner_role\":\"Social Media Manager / Content Ops\",\"due_days\":5,\"source_insight\":\"Competitors are repurposing YouTube clips into LinkedIn shorts.\"},{\"title\":\"Publish 3\u20134 detailed case studies showing automation ROI\",\"rationale\":\"Competitors\u2019 case studies build B2B credibility; detailed, data-backed case studies help sales and conversion by proving tangible ROI.\",\"category\":\"Case Studies\",\"priority\":\"High\",\"ice_score\":8,\"owner_role\":\"Customer Marketing / Content Team\",\"due_days\":21,\"source_insight\":\"Competitors are publishing case studies about automation ROI.\"},{\"title\":\"Create one-page ROI summaries for sales and paid campaigns\",\"rationale\":\"Short, data-driven one-pagers are easy for sales to share and effective as paid-ad landing page creatives.\",\"category\":\"Sales Enablement\",\"priority\":\"Medium\",\"ice_score\":7,\"owner_role\":\"Growth / Sales Enablement\",\"due_days\":10,\"source_insight\":\"Competitors are publishing case studies about automation ROI.\"},{\"title\":\"Run a controlled test series of meme-based AI posts targeting younger audiences\",\"rationale\":\"Meme content occasionally goes viral and attracts younger users; a controlled test lets us measure reach lift without overcommitting resources.\",\"category\":\"Social Media\",\"priority\":\"Low\",\"ice_score\":5,\"owner_role\":\"Social Media Manager\",\"due_days\":14,\"source_insight\":\"Competitors are creating meme-based AI content.\"},{\"title\":\"Partner with micro-influencers for humorous AI content bursts\",\"rationale\":\"Micro-influencers can amplify meme content and increase virality while keeping costs controlled; useful to test audience affinity.\",\"category\":\"Influencer Marketing\",\"priority\":\"Low\",\"ice_score\":5,\"owner_role\":\"Influencer / Partnerships Lead\",\"due_days\":21,\"source_insight\":\"Competitors are creating meme-based AI content.\"}]}",
+          "cities": []
+        }
+      }
+    ]
+  },
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "20935e6e42b4060606f53eded764687ab4300d59de9aceb8bca4fbc698d1c11e"
+  }
+}
