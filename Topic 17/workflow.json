@@ -1,0 +1,1458 @@
+{
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "09b46eef-92da-4a23-92a9-52ae0ba4f32d",
+      "name": "When clicking 'Execute workflow'",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        -1424,
+        112
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "return [\n  { json: { \"query\": \"prompt engineering\" } },\n  { json: { \"query\": \"power bi\" } },\n  { json: { \"query\": \"lead generation\" } }\n];"
+      },
+      "id": "0c108fbc-e253-4bc2-b099-ee0cb5aa350c",
+      "name": "Code in JavaScript1",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1200,
+        112
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "combine",
+        "combinationMode": "mergeByPosition",
+        "options": {}
+      },
+      "id": "09835865-6e7f-432b-b158-49004e0117a3",
+      "name": "Merge1",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 2.1,
+      "position": [
+        -624,
+        -192
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "combine",
+        "combinationMode": "mergeByPosition",
+        "options": {}
+      },
+      "id": "6edc8417-e876-4628-829d-ceea9efd85ca",
+      "name": "Merge",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 2.1,
+      "position": [
+        -624,
+        80
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "combine",
+        "combinationMode": "mergeByPosition",
+        "options": {}
+      },
+      "id": "a3694430-144a-46c0-9fd5-b45e37ec8c4e",
+      "name": "Merge2",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 2.1,
+      "position": [
+        -624,
+        336
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "return $json;;"
+      },
+      "id": "fc88c8fc-436a-4dc9-af45-97333f7cb763",
+      "name": "Code in JavaScript3",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -464,
+        -192
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "return $json;"
+      },
+      "id": "febd4191-1c59-4b85-8910-0395cae4a827",
+      "name": "Code in JavaScript",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -464,
+        80
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "return $json;"
+      },
+      "id": "561b6fe8-94b2-41a8-ba4a-8a69c77650cd",
+      "name": "Code in JavaScript5",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -464,
+        336
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "YOUR_SPREADSHEET_ID",
+          "mode": "list",
+          "cachedResultName": "comp list building",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/YOUR_SPREADSHEET_ID/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 986205132,
+          "mode": "list",
+          "cachedResultName": "Sheet2",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/YOUR_SPREADSHEET_ID/edit#gid=986205132"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "company_name": "={{ $json.company_name }}",
+            "website": "={{ $json.website }}",
+            "industry": "={{ $json.industry }}",
+            "employee_count": "={{ $json.employee_count }}",
+            "linkedin": "={{ $json.linkedin }}",
+            "description": "={{ $json.description }}",
+            "source": "={{ $json.source }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "company_name",
+              "displayName": "company_name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "website",
+              "displayName": "website",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "industry",
+              "displayName": "industry",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "employee_count",
+              "displayName": "employee_count",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "linkedin",
+              "displayName": "linkedin",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "description",
+              "displayName": "description",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "source",
+              "displayName": "source",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "ac9f7282-6186-479d-ac32-b2952d35bbc5",
+      "name": "Append row in sheet",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        -304,
+        80
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "YOUR_SPREADSHEET_ID",
+          "mode": "list",
+          "cachedResultName": "comp list building",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/YOUR_SPREADSHEET_ID/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 1147551034,
+          "mode": "list",
+          "cachedResultName": "Sheet3",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/YOUR_SPREADSHEET_ID/edit#gid=1147551034"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "company_name": "={{ $json.company_name }}",
+            "website": "={{ $json.website }}",
+            "industry": "={{ $json.industry }}",
+            "employee_count": "={{ $json.employee_count }}",
+            "linkedin": "={{ $json.linkedin }}",
+            "description": "={{ $json.description }}",
+            "source": "={{ $json.source }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "company_name",
+              "displayName": "company_name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "website",
+              "displayName": "website",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "industry",
+              "displayName": "industry",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "employee_count",
+              "displayName": "employee_count",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "linkedin",
+              "displayName": "linkedin",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "description",
+              "displayName": "description",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "source",
+              "displayName": "source",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "0ab58212-9051-405a-8a58-d8659bc780f0",
+      "name": "Append row in sheet2",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        -304,
+        336
+      ]
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "id": "6fa157cb-dfed-43c2-989a-9bdea8e02ffd",
+      "name": "Loop Over Items1",
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        -144,
+        -192
+      ]
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "id": "d24c1944-dfe9-40d8-999b-a1b0e79c74f5",
+      "name": "Loop Over Items",
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        -144,
+        80
+      ]
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "id": "7a1c1c2a-895e-4f92-bc9b-8a66fe10c087",
+      "name": "Loop Over Items2",
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        -144,
+        336
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "return items.map(item => {\n  return {\n    json: {\n      company_name: item.json.company_name || 'Unknown',\n      website: item.json.website || '',\n      industry: item.json.industry || 'Artificial Intelligence',\n      employee_count: parseInt(item.json.employee_count) || null,\n      linkedin: item.json.linkedin || '',\n      description: item.json.description || '',\n      source: 'Apify Dataset'\n    }\n  };\n});"
+      },
+      "id": "a5168a55-b3ef-46e1-b6dd-b3578141b5de",
+      "name": "Code in JavaScript4",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        352,
+        -224
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "return items.map(item => {\n  return {\n    json: {\n      company_name: item.json.company_name || 'Unknown',\n      website: item.json.website || '',\n      industry: item.json.industry || 'Artificial Intelligence',\n      employee_count: parseInt(item.json.employee_count) || null,\n      linkedin: item.json.linkedin || '',\n      description: item.json.description || '',\n      source: 'Apify Dataset'\n    }\n  };\n});"
+      },
+      "id": "17b9a2eb-1776-4e7c-8c94-a5c230aadf4c",
+      "name": "Code in JavaScript2",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        352,
+        48
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "return items.map(item => {\n  return {\n    json: {\n      company_name: item.json.company_name || 'Unknown',\n      website: item.json.website || '',\n      industry: item.json.industry || 'Artificial Intelligence',\n      employee_count: parseInt(item.json.employee_count) || null,\n      linkedin: item.json.linkedin || '',\n      description: item.json.description || '',\n      source: 'Apify Dataset'\n    }\n  };\n});"
+      },
+      "id": "e23a1985-ef01-43dd-b18c-e76ed4e2bef5",
+      "name": "Code in JavaScript6",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        352,
+        336
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "removeDuplicates"
+      },
+      "id": "8ba16373-2d20-4695-90d3-aa1922a51d66",
+      "name": "Remove Duplicates1",
+      "type": "n8n-nodes-base.itemLists",
+      "typeVersion": 3,
+      "position": [
+        512,
+        -224
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "removeDuplicates"
+      },
+      "id": "d48a2efd-d5f5-4336-b053-66a09280a1ad",
+      "name": "Remove Duplicates",
+      "type": "n8n-nodes-base.itemLists",
+      "typeVersion": 3,
+      "position": [
+        512,
+        48
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "removeDuplicates"
+      },
+      "id": "8f39f843-e411-4e18-a9c5-42281341e8da",
+      "name": "Remove Duplicates2",
+      "type": "n8n-nodes-base.itemLists",
+      "typeVersion": 3,
+      "position": [
+        528,
+        336
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "appendOrUpdate",
+        "documentId": {
+          "__rl": true,
+          "value": "YOUR_SPREADSHEET_ID",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "ai_company_research",
+          "mode": "name"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "company_name": "={{ $json.company_name }}",
+            "website": "={{ $json.website }}",
+            "industry": "={{ $json.industry }}",
+            "employee_count": "={{ $json.employee_count }}",
+            "linkedin": "={{ $json.linkedin }}",
+            "description": "={{ $json.description }}",
+            "source": "Apify Dataset"
+          },
+          "matchingColumns": [
+            "company_name"
+          ],
+          "schema": [
+            {
+              "id": "company_name",
+              "displayName": "company_name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "website",
+              "displayName": "website",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "industry",
+              "displayName": "industry",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "employee_count",
+              "displayName": "employee_count",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "linkedin",
+              "displayName": "linkedin",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "description",
+              "displayName": "description",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "source",
+              "displayName": "source",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "ea697395-56fd-49a9-8881-fb223e9054de",
+      "name": "Append or update row in sheet1",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        688,
+        -192
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "appendOrUpdate",
+        "documentId": {
+          "__rl": true,
+          "value": "YOUR_SPREADSHEET_ID",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 1238362187,
+          "mode": "list",
+          "cachedResultName": "linkedin_leads",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/YOUR_SPREADSHEET_ID/edit#gid=1238362187"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "company_name": "={{ $json.company_name }}",
+            "website": "={{ $json.website }}",
+            "industry": "={{ $json.industry }}",
+            "employee_count": "={{ $json.employee_count }}",
+            "linkedin": "={{ $json.linkedin }}",
+            "description": "={{ $json.description }}",
+            "source": "Apify Dataset"
+          },
+          "matchingColumns": [
+            "company_name"
+          ],
+          "schema": [
+            {
+              "id": "company_name",
+              "displayName": "company_name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "website",
+              "displayName": "website",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "industry",
+              "displayName": "industry",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "employee_count",
+              "displayName": "employee_count",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "linkedin",
+              "displayName": "linkedin",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "description",
+              "displayName": "description",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "source",
+              "displayName": "source",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "29d7a07e-6368-4536-989c-dd9368948b6d",
+      "name": "Append or update row in sheet",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        688,
+        80
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "appendOrUpdate",
+        "documentId": {
+          "__rl": true,
+          "value": "YOUR_SPREADSHEET_ID",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 282281159,
+          "mode": "list",
+          "cachedResultName": "startup_database",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/YOUR_SPREADSHEET_ID/edit#gid=282281159"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "company_name": "={{ $json.company_name }}",
+            "website": "={{ $json.website }}",
+            "industry": "={{ $json.industry }}",
+            "employee_count": "={{ $json.employee_count }}",
+            "linkedin": "={{ $json.linkedin }}",
+            "description": "={{ $json.description }}",
+            "source": "={{ $json.source }}"
+          },
+          "matchingColumns": [
+            "company_name"
+          ],
+          "schema": [
+            {
+              "id": "company_name",
+              "displayName": "company_name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "website",
+              "displayName": "website",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "industry",
+              "displayName": "industry",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "employee_count",
+              "displayName": "employee_count",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "linkedin",
+              "displayName": "linkedin",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "description",
+              "displayName": "description",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "source",
+              "displayName": "source",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "3c5ea4b7-e08d-4dbd-bf58-f5581ff53119",
+      "name": "Append or update row in sheet2",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        688,
+        352
+      ]
+    },
+    {
+      "parameters": {
+        "q": "prompt engineering course",
+        "additionalFields": {},
+        "requestOptions": {}
+      },
+      "type": "n8n-nodes-serpapi.serpApi",
+      "typeVersion": 1,
+      "position": [
+        -848,
+        -192
+      ],
+      "id": "085163d6-5935-4446-a77d-b9ce70a1ff06",
+      "name": "Google search prompt engineering"
+    },
+    {
+      "parameters": {
+        "q": "power bi course",
+        "additionalFields": {},
+        "requestOptions": {}
+      },
+      "type": "n8n-nodes-serpapi.serpApi",
+      "typeVersion": 1,
+      "position": [
+        -864,
+        64
+      ],
+      "id": "bd729410-d3e6-4a41-af7b-2a265f5e74e7",
+      "name": "Google search power bi"
+    },
+    {
+      "parameters": {
+        "q": "lead generation",
+        "additionalFields": {},
+        "requestOptions": {}
+      },
+      "type": "n8n-nodes-serpapi.serpApi",
+      "typeVersion": 1,
+      "position": [
+        -864,
+        320
+      ],
+      "id": "542f75de-d00b-4ae5-b9e4-dac6c74c9876",
+      "name": "Google search lead geneartion"
+    },
+    {
+      "parameters": {
+        "operation": "appendOrUpdate",
+        "documentId": {
+          "__rl": true,
+          "value": "YOUR_SPREADSHEET_ID",
+          "mode": "list",
+          "cachedResultName": "comp list building",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/YOUR_SPREADSHEET_ID/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Sheet1",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/YOUR_SPREADSHEET_ID/edit#gid=0"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "company_name": "={{ $json.company_name }}",
+            "website": "={{ $json.website }}",
+            "industry": "={{ $json.industry }}",
+            "employee_count": "={{ $json.employee_count }}",
+            "linkedin": "={{ $json.linkedin }}",
+            "description": "={{ $json.description }}",
+            "source": "={{ $json.source }}"
+          },
+          "matchingColumns": [
+            "company_name"
+          ],
+          "schema": [
+            {
+              "id": "company_name",
+              "displayName": "company_name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "website",
+              "displayName": "website",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "industry",
+              "displayName": "industry",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "employee_count",
+              "displayName": "employee_count",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "linkedin",
+              "displayName": "linkedin",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "description",
+              "displayName": "description",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "source",
+              "displayName": "source",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "2869f77f-29d9-4bdd-9e01-67f0b07fd660",
+      "name": "Append or update row in sheet3",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        -304,
+        -192
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "Run actor and get dataset",
+        "actorSource": "store",
+        "actorId": {
+          "__rl": true,
+          "value": "nFJndFXA5zjCTuudP",
+          "mode": "list",
+          "cachedResultName": "Google Search Results Scraper (apify/google-search-scraper)",
+          "cachedResultUrl": "https://console.apify.com/actors/nFJndFXA5zjCTuudP/input"
+        },
+        "authentication": "apifyOAuth2Api"
+      },
+      "type": "@apify/n8n-nodes-apify.apify",
+      "typeVersion": 1,
+      "position": [
+        128,
+        -224
+      ],
+      "id": "9613f1b0-636e-4d6c-826c-9786cedd5c74",
+      "name": "Run an Actor and get dataset"
+    },
+    {
+      "parameters": {
+        "operation": "Run actor and get dataset",
+        "actorSource": "store",
+        "actorId": {
+          "__rl": true,
+          "value": "IoSHqwTR9YGhzccez",
+          "mode": "list",
+          "cachedResultName": "\u2728Leads Finder - $1.5/1k leads with Emails [Apollo Alternative] (code_crafter/leads-finder)",
+          "cachedResultUrl": "https://console.apify.com/actors/IoSHqwTR9YGhzccez/input"
+        },
+        "authentication": "apifyOAuth2Api"
+      },
+      "type": "@apify/n8n-nodes-apify.apify",
+      "typeVersion": 1,
+      "position": [
+        128,
+        64
+      ],
+      "id": "ad8a308d-2118-434f-9d9f-09f09899901b",
+      "name": "Run an Actor and get dataset1"
+    },
+    {
+      "parameters": {
+        "operation": "Run actor and get dataset",
+        "actorSource": "store",
+        "actorId": {
+          "__rl": true,
+          "value": "nwua9Gu5YrADL7ZDj",
+          "mode": "list",
+          "cachedResultName": "Google Maps Scraper (compass/crawler-google-places)",
+          "cachedResultUrl": "https://console.apify.com/actors/nwua9Gu5YrADL7ZDj/input"
+        },
+        "authentication": "apifyOAuth2Api"
+      },
+      "type": "@apify/n8n-nodes-apify.apify",
+      "typeVersion": 1,
+      "position": [
+        128,
+        336
+      ],
+      "id": "783f9463-6133-41c5-bd96-47938097a80f",
+      "name": "Run an Actor and get dataset2"
+    },
+    {
+      "parameters": {
+        "content": "Prompt engineering course",
+        "height": 272,
+        "width": 1936,
+        "color": 3
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -1040,
+        -272
+      ],
+      "id": "f7e9f925-001e-4df2-b968-8c8826f7d31a",
+      "name": "Sticky Note3"
+    },
+    {
+      "parameters": {
+        "content": "Power BI course",
+        "height": 272,
+        "width": 1936,
+        "color": 6
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -1040,
+        32
+      ],
+      "id": "20bb3e17-3bda-491a-b820-803465c3ab21",
+      "name": "Sticky Note"
+    },
+    {
+      "parameters": {
+        "content": "Lead Generation",
+        "height": 272,
+        "width": 1936,
+        "color": 5
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -1040,
+        320
+      ],
+      "id": "54be2440-8398-45a7-a704-e3c09ede0abc",
+      "name": "Sticky Note4"
+    }
+  ],
+  "connections": {
+    "When clicking 'Execute workflow'": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript1": {
+      "main": [
+        [
+          {
+            "node": "Google search power bi",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Google search prompt engineering",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Google search lead geneartion",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge1": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge2": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript5",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript3": {
+      "main": [
+        [
+          {
+            "node": "Append or update row in sheet3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript": {
+      "main": [
+        [
+          {
+            "node": "Append row in sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript5": {
+      "main": [
+        [
+          {
+            "node": "Append row in sheet2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Append row in sheet": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Append row in sheet2": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Loop Over Items1": {
+      "main": [
+        [],
+        [
+          {
+            "node": "Run an Actor and get dataset",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Loop Over Items": {
+      "main": [
+        [],
+        [
+          {
+            "node": "Run an Actor and get dataset1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Loop Over Items2": {
+      "main": [
+        [],
+        [
+          {
+            "node": "Run an Actor and get dataset2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript4": {
+      "main": [
+        [
+          {
+            "node": "Remove Duplicates1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript2": {
+      "main": [
+        [
+          {
+            "node": "Remove Duplicates",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript6": {
+      "main": [
+        [
+          {
+            "node": "Remove Duplicates2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Remove Duplicates1": {
+      "main": [
+        [
+          {
+            "node": "Append or update row in sheet1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Remove Duplicates": {
+      "main": [
+        [
+          {
+            "node": "Append or update row in sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Remove Duplicates2": {
+      "main": [
+        [
+          {
+            "node": "Append or update row in sheet2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Append or update row in sheet1": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Append or update row in sheet": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Append or update row in sheet2": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google search prompt engineering": {
+      "main": [
+        [
+          {
+            "node": "Merge1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google search power bi": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google search lead geneartion": {
+      "main": [
+        [
+          {
+            "node": "Merge2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Append or update row in sheet3": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Run an Actor and get dataset": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript4",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Run an Actor and get dataset1": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Run an Actor and get dataset2": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript6",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {
+    "Google search prompt engineering": [
+      {
+        "query": "prompt engineering",
+        "company_name": "OpenAI",
+        "website": "https://openai.com",
+        "industry": "Artificial Intelligence",
+        "employee_count": 1500,
+        "linkedin": "https://linkedin.com/company/openai",
+        "description": "AI research and deployment company behind ChatGPT and advanced prompt tuning methodologies.",
+        "source": "Google AI Overview"
+      }
+    ],
+    "Google search power bi": [
+      {
+        "query": "power bi",
+        "company_name": "Microsoft",
+        "website": "https://microsoft.com",
+        "industry": "Business Intelligence",
+        "employee_count": 220000,
+        "linkedin": "https://linkedin.com/company/microsoft",
+        "description": "Developer of Power BI enterprise analytics and cloud data visualization platforms.",
+        "source": "Google AI Overview"
+      }
+    ],
+    "Google search lead geneartion": [
+      {
+        "query": "lead generation",
+        "company_name": "Perplexity",
+        "website": "https://perplexity.ai",
+        "industry": "AI Search",
+        "employee_count": 400,
+        "linkedin": "https://linkedin.com/company/perplexity-ai",
+        "description": "AI answer engine optimizing conversational web discovery and modern B2B indexing techniques.",
+        "source": "Google AI Overview"
+      }
+    ],
+    "Run an Actor and get dataset": [
+      {
+        "company_name": "OpenAI",
+        "website": "https://openai.com",
+        "industry": "Artificial Intelligence",
+        "employee_count": 1500,
+        "linkedin": "https://linkedin.com/company/openai",
+        "description": "AI research and deployment company behind ChatGPT and advanced prompt tuning methodologies.",
+        "source": "Apify Dataset"
+      },
+      {
+        "company_name": "OpenAI",
+        "website": "https://openai.com",
+        "industry": "Artificial Intelligence",
+        "employee_count": 1500,
+        "linkedin": "https://linkedin.com/company/openai",
+        "description": "AI research and deployment company behind ChatGPT and advanced prompt tuning methodologies.",
+        "source": "Apify Dataset"
+      }
+    ],
+    "Run an Actor and get dataset1": [
+      {
+        "company_name": "Microsoft",
+        "website": "https://microsoft.com",
+        "industry": "Business Intelligence",
+        "employee_count": 220000,
+        "linkedin": "https://linkedin.com/company/microsoft",
+        "description": "Developer of Power BI enterprise analytics and cloud data visualization platforms.",
+        "source": "Apify Dataset"
+      }
+    ],
+    "Run an Actor and get dataset2": [
+      {
+        "company_name": "Anthropic",
+        "website": "https://anthropic.com",
+        "industry": "AI Safety",
+        "employee_count": 900,
+        "linkedin": "https://linkedin.com/company/anthropic",
+        "description": "Claude AI creator focusing on scalable, steerable, and reliable AI system implementations.",
+        "source": "Apify Dataset"
+      }
+    ]
+  },
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "20935e6e42b4060606f53eded764687ab4300d59de9aceb8bca4fbc698d1c11e"
+  }
+}
