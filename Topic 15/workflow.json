@@ -1,0 +1,514 @@
+{
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "nebula-funnel-update",
+        "options": {}
+      },
+      "id": "be8661a9-1756-46aa-b678-46f7ef97d6f8",
+      "name": "Webhook Trigger",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        -896,
+        -64
+      ],
+      "webhookId": "fdf4c3b9-e9e6-4202-83e0-4dee903c6f74"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.body.event_id }}",
+              "operation": "isNotEmpty"
+            },
+            {
+              "value1": "={{ $json.body.status }}",
+              "value2": "completed"
+            }
+          ]
+        }
+      },
+      "id": "8ae06f25-a8d9-42a6-8586-9d280d038353",
+      "name": "Validate Input Payload",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        -688,
+        -64
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT id, customer_name, stage, status_funnel \nFROM public.opportunity \nWHERE status_funnel IS NULL;",
+        "options": {}
+      },
+      "id": "33743bb1-000f-4eca-8e19-ab5f110bdc15",
+      "name": "Read Source from Postgres",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [
+        -448,
+        -64
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Step 1: Extract and Normalize Stage\nconst stage = item.json.stage;\nlet funnelStatus = 'Unknown';\n\nif (stage) {\n  switch (String(stage).toLowerCase().trim()) {\n    case 'suspect interested':\n    case 'suspect not interested':\n    case 'lead not responding':\n    case 'webinar registration completed':\n    case 'webinar attended':\n    case 'after webinar registration didn\\'t attend':\n      funnelStatus = 'Lead';\n      break;\n    case 'mql':\n      funnelStatus = 'MQL';\n      break;\n    case 'sql':\n      funnelStatus = 'SQL';\n      break;\n    case 'customer':\n    case 'won':\n      funnelStatus = 'Customer';\n      break;\n  }\n}\n\n// Step 2: Implement Duplicate/Idempotency Detection\n// Skip processing if status_funnel is already matching current calculation\nif (item.json.status_funnel === funnelStatus) {\n  item.json.is_duplicate = true;\n} else {\n  item.json.is_duplicate = false;\n  item.json.status_funnel = funnelStatus;\n}\n\nreturn item;"
+      },
+      "id": "fa27c23c-5cea-46ad-ad1a-cf5a915fcc1d",
+      "name": "Process Logic & Duplicate Check",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -224,
+        -64
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ $json.is_duplicate }}",
+              "value2": true
+            }
+          ]
+        }
+      },
+      "id": "f052e76b-9264-4111-8e72-fe7dc7ddb6b3",
+      "name": "Is Duplicate?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        0,
+        -64
+      ]
+    },
+    {
+      "parameters": {
+        "amount": 2
+      },
+      "id": "d4279271-3cda-4c01-8e84-5436c2e3de35",
+      "name": "Pacing & Rate Limiting",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        464,
+        32
+      ],
+      "webhookId": "f25caff8-f530-4a86-aa73-5f72cea35a45"
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "schema": {
+          "__rl": true,
+          "mode": "list",
+          "value": "public"
+        },
+        "table": {
+          "__rl": true,
+          "mode": "list",
+          "value": "opportunity"
+        },
+        "columns": {
+          "0": "status_funnel",
+          "mappingMode": "defineBelow",
+          "value": {
+            "id": "={{ $('Read Source from Postgres').item.json.id }}",
+            "status_funnel": "={{ $json.fields.status }}"
+          },
+          "matchingColumns": [
+            "id"
+          ],
+          "schema": [
+            {
+              "id": "id",
+              "displayName": "id",
+              "required": false,
+              "defaultMatch": true,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "customer_name",
+              "displayName": "customer_name",
+              "required": true,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "stage",
+              "displayName": "stage",
+              "required": true,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "status_funnel",
+              "displayName": "status_funnel",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "updated_at",
+              "displayName": "updated_at",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "dateTime",
+              "canBeUsedToMatch": true,
+              "removed": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "0bc015b7-5a64-4780-a235-2fdf2453dcbe",
+      "name": "Update Funnel Status in Postgres",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [
+        688,
+        32
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "base": {
+          "__rl": true,
+          "value": "YOUR_AIRTABLE_BASE_ID",
+          "mode": "list",
+          "cachedResultName": "Nebula CRM",
+          "cachedResultUrl": "https://airtable.com/YOUR_AIRTABLE_BASE_ID"
+        },
+        "table": {
+          "__rl": true,
+          "value": "YOUR_AIRTABLE_TABLE_ID",
+          "mode": "list",
+          "cachedResultName": "CRM Funnel Updates",
+          "cachedResultUrl": "https://airtable.com/YOUR_AIRTABLE_BASE_ID/YOUR_AIRTABLE_TABLE_ID"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "event_id": "={{ \"EVT-\" + (1000 + $json.id) }}",
+            "status": "={{ $json.status_funnel }}"
+          },
+          "matchingColumns": [
+            "event_id"
+          ],
+          "schema": [
+            {
+              "id": "id",
+              "displayName": "id",
+              "required": false,
+              "defaultMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": true,
+              "removed": true
+            },
+            {
+              "id": "event_id",
+              "displayName": "event_id",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "status",
+              "displayName": "status",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "payload",
+              "displayName": "payload",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": true
+            },
+            {
+              "id": "crm_status",
+              "displayName": "crm_status",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": true
+            },
+            {
+              "id": "processed_at",
+              "displayName": "processed_at",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "dateTime",
+              "readOnly": false,
+              "removed": true
+            },
+            {
+              "id": "Insights Summary",
+              "displayName": "Insights Summary",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": true
+            },
+            {
+              "id": "Payload Category",
+              "displayName": "Payload Category",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "options",
+              "options": [
+                {
+                  "name": "Lead Created",
+                  "value": "Lead Created"
+                },
+                {
+                  "name": "Activity Logged",
+                  "value": "Activity Logged"
+                },
+                {
+                  "name": "Qualified",
+                  "value": "Qualified"
+                },
+                {
+                  "name": "Won",
+                  "value": "Won"
+                },
+                {
+                  "name": "Lost",
+                  "value": "Lost"
+                },
+                {
+                  "name": "Other",
+                  "value": "Other"
+                },
+                {
+                  "name": "Lead Event",
+                  "value": "Lead Event"
+                },
+                {
+                  "name": "Contact Event",
+                  "value": "Contact Event"
+                },
+                {
+                  "name": "Qualification Event",
+                  "value": "Qualification Event"
+                },
+                {
+                  "name": "Demo Event",
+                  "value": "Demo Event"
+                },
+                {
+                  "name": "Loss Event",
+                  "value": "Loss Event"
+                },
+                {
+                  "name": "Proposal Event",
+                  "value": "Proposal Event"
+                },
+                {
+                  "name": "Negotiation Event",
+                  "value": "Negotiation Event"
+                },
+                {
+                  "name": "Win Event",
+                  "value": "Win Event"
+                },
+                {
+                  "name": "Re-engagement Event",
+                  "value": "Re-engagement Event"
+                }
+              ],
+              "readOnly": false,
+              "removed": true
+            },
+            {
+              "id": "CRM Status Change?",
+              "displayName": "CRM Status Change?",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "options",
+              "options": [
+                {
+                  "name": "Yes",
+                  "value": "Yes"
+                },
+                {
+                  "name": "No",
+                  "value": "No"
+                }
+              ],
+              "readOnly": false,
+              "removed": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.airtable",
+      "typeVersion": 2.2,
+      "position": [
+        256,
+        32
+      ],
+      "id": "5d38e5cf-271e-4477-b91a-76b402334295",
+      "name": "Update record"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "CREATE OR REPLACE PROCEDURE reset_project_pipeline()\nLANGUAGE plpgsql AS $$\nBEGIN\n    -- Only update columns that actually exist in your database schema\n    UPDATE public.opportunity \n    SET status_funnel = NULL;\nEND;\n$$;\n\n-- Run this command to reset your data pipeline slate cleanly:\nCALL reset_project_pipeline();",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        1520,
+        384
+      ],
+      "id": "0aac2977-1c25-4d62-8ee7-a1841fcbab73",
+      "name": "Execute a SQL query",
+      "disabled": true
+    }
+  ],
+  "connections": {
+    "Webhook Trigger": {
+      "main": [
+        [
+          {
+            "node": "Validate Input Payload",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Input Payload": {
+      "main": [
+        [
+          {
+            "node": "Read Source from Postgres",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read Source from Postgres": {
+      "main": [
+        [
+          {
+            "node": "Process Logic & Duplicate Check",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Process Logic & Duplicate Check": {
+      "main": [
+        [
+          {
+            "node": "Is Duplicate?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Is Duplicate?": {
+      "main": [
+        [],
+        [
+          {
+            "node": "Update record",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Pacing & Rate Limiting": {
+      "main": [
+        [
+          {
+            "node": "Update Funnel Status in Postgres",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update Funnel Status in Postgres": {
+      "main": [
+        []
+      ]
+    },
+    "Update record": {
+      "main": [
+        [
+          {
+            "node": "Pacing & Rate Limiting",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "20935e6e42b4060606f53eded764687ab4300d59de9aceb8bca4fbc698d1c11e"
+  }
+}
