@@ -1,0 +1,154 @@
+{
+  "nodes": [
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "WITH base AS (\n    SELECT \n        \"normalizedLinkedinUrlPrimaryLinkUrl\"\n    FROM \n        workspace_dqaf41n5sd58vkd3u2ns7cwgs.\"_peopleraw\"\n    WHERE \n        \"status\" = '1 - ExtractedWithUniqueID'\n        AND NULLIF(TRIM(\"normalizedLinkedinUrlPrimaryLinkUrl\"), '') IS NOT NULL\n    GROUP BY \n        \"normalizedLinkedinUrlPrimaryLinkUrl\"\n    HAVING \n        COUNT(*) > 1\n)\nSELECT \n    COUNT(*) AS Duplicate_group_count,\n    SUM(cnt) AS Duplicate_record_count\nFROM (\n    SELECT \n        COUNT(*) as cnt\n    FROM \n        workspace_dqaf41n5sd58vkd3u2ns7cwgs.\"_peopleraw\"\n    WHERE \n        \"normalizedLinkedinUrlPrimaryLinkUrl\" IN (SELECT \"normalizedLinkedinUrlPrimaryLinkUrl\" FROM base)\n    GROUP BY \n        \"normalizedLinkedinUrlPrimaryLinkUrl\"\n) sub;",
+        "options": {}
+      },
+      "id": "02e16705-c5b3-4ccd-811f-864054d82237",
+      "name": "Count Duplicate Groups",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        -16,
+        320
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT \n    id, \n    \"normalizedLinkedinUrlPrimaryLinkUrl\", \n    status, \n    \"createdAt\"\nFROM \n    workspace_dqaf41n5sd58vkd3u2ns7cwgs.\"_peopleraw\"\nWHERE \n    \"normalizedLinkedinUrlPrimaryLinkUrl\" IN (\n        SELECT \"normalizedLinkedinUrlPrimaryLinkUrl\"\n        FROM workspace_dqaf41n5sd58vkd3u2ns7cwgs.\"_peopleraw\"\n        WHERE \"status\" = '1 - ExtractedWithUniqueID'\n        GROUP BY \"normalizedLinkedinUrlPrimaryLinkUrl\"\n        HAVING COUNT(*) > 1\n    )\nORDER BY \n    \"normalizedLinkedinUrlPrimaryLinkUrl\", \n    \"createdAt\" ASC;",
+        "options": {}
+      },
+      "id": "a0bdf536-bbe4-4e71-abbb-d655e5b7eac0",
+      "name": "List All Duplicate Records",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        368,
+        320
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "-- Step 1 - Identify primary records per LinkedIn URL\nWITH primary_records AS (\n    SELECT DISTINCT ON (\"normalizedLinkedinUrlPrimaryLinkUrl\")\n        id AS primary_id,\n        \"normalizedLinkedinUrlPrimaryLinkUrl\"\n    FROM workspace_dqaf41n5sd58vkd3u2ns7cwgs.\"_peopleraw\"\n    WHERE \"status\" = 'Duplicate Merger Pending'\n       AND COALESCE(\"normalizedLinkedinUrlPrimaryLinkUrl\", '') <> ''\n    ORDER BY \"normalizedLinkedinUrlPrimaryLinkUrl\", \"createdAt\" ASC\n)\n\n-- Step 2 - Mark primary records as Duplicate Merged (status 5)\nUPDATE workspace_dqaf41n5sd58vkd3u2ns7cwgs.\"_peopleraw\" p\nSET \n    \"status\" = 'Duplicate Merged',\n    \"updatedAt\" = NOW()\nWHERE id IN (SELECT primary_id FROM primary_records)\nRETURNING id, \"normalizedLinkedinUrlPrimaryLinkUrl\", \"status\";",
+        "options": {}
+      },
+      "id": "8c4034cb-9c1e-47dc-a80f-292188c74da2",
+      "name": "Merge Duplicate Records",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        752,
+        320
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT COUNT(*) AS moved_to_duplicate_merger_pending\nFROM workspace_dqaf41n5sd58vkd3u2ns7cwgs.\"_peopleraw\"\nWHERE \"status\" = '4 - DuplicateMergerPending';",
+        "options": {}
+      },
+      "id": "a1d4e3a7-f01f-45bd-b778-5de1a6b595c1",
+      "name": "Count Updated Documents",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        1056,
+        320
+      ]
+    },
+    {
+      "parameters": {
+        "content": "Check Duplicates with Details. Grabs the individual IDs, URLs, and creation dates for all conflicting records so you can verify them.",
+        "height": 288,
+        "width": 256,
+        "color": 3
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        288,
+        176
+      ],
+      "id": "671c48ee-e9c9-4a7d-9a84-96aa33020450",
+      "name": "Sticky Note"
+    },
+    {
+      "parameters": {
+        "content": "Once Verified, Run Update. Uses a Common Table Expression (CTE) to pick the oldest (DISTINCT ON / ORDER BY createdAt ASC) record as your master \"primary\" row and flags it as Duplicate Merged.",
+        "height": 288,
+        "width": 256,
+        "color": 4
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        672,
+        176
+      ],
+      "id": "1007e561-6ee6-4493-b59b-be32bb75767e",
+      "name": "Sticky Note1"
+    },
+    {
+      "parameters": {
+        "content": "Returns a quick calculation showing the absolute count of rows remaining with the status code 4 - DuplicateMergerPending.",
+        "height": 288,
+        "color": 6
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        992,
+        176
+      ],
+      "id": "019e2e9e-8be3-4bd9-927e-33ec58aa2dcc",
+      "name": "Sticky Note2"
+    },
+    {
+      "parameters": {
+        "content": "Check Duplicates (SELECT only)",
+        "height": 288,
+        "color": 5
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -80,
+        176
+      ],
+      "id": "4b4cdbaf-44eb-4a62-8c50-750332f978f8",
+      "name": "Sticky Note3"
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        544,
+        544
+      ],
+      "id": "632dd335-002f-458b-86c8-1ef646cb2eb9",
+      "name": "When clicking \u2018Execute workflow\u2019"
+    }
+  ],
+  "connections": {
+    "Merge Duplicate Records": {
+      "main": [
+        []
+      ]
+    },
+    "When clicking \u2018Execute workflow\u2019": {
+      "main": [
+        []
+      ]
+    }
+  },
+  "pinData": {},
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "20935e6e42b4060606f53eded764687ab4300d59de9aceb8bca4fbc698d1c11e"
+  }
+}
