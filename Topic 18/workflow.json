@@ -1,0 +1,147 @@
+{
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "c78d953e-a2f9-481f-9ba9-2f25ccc2793f",
+      "name": "When clicking 'Execute workflow'",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        -176,
+        -32
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT\n    \"id\",\n    COALESCE(NULLIF(TRIM(\"fullName\"),''), NULLIF(TRIM(\"originalFullName\"),'')) AS full_name,\n    TRIM(\"jobTitle\")                  AS job_title,\n    \"profileUrlPrimaryLinkUrl\"        AS linkedin_profile,\n    \"status\"\nFROM workspace_dqaf41n5sd58vkd3u2ns7cwgs.\"_peopleraw\"\nWHERE\n    \"status\" IN (\n        '1 - ExtractedWithUniqueID',\n        '3 - UniqueIDIdentified',\n        '6 - UniqueFound-CRM Pending',\n        '7 - CRMCompleted'\n    )\n    AND \"jobTitle\" ILIKE '%acumatica%'\n    AND \"jobTitle\" NOT ILIKE '%ex%'\n    AND \"jobTitle\" NOT ILIKE '%former%'\n    AND \"jobTitle\" NOT ILIKE '%previous%'\nORDER BY full_name NULLS LAST;",
+        "options": {}
+      },
+      "id": "88492186-e4b6-42ba-a8a2-c55eb0c9cb1d",
+      "name": "Execute a SQL query",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.1,
+      "position": [
+        48,
+        -32
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "YOUR_SPREADSHEET_ID",
+          "mode": "list",
+          "cachedResultName": "People crm output",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/YOUR_SPREADSHEET_ID/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Sheet1",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/YOUR_SPREADSHEET_ID/edit#gid=0"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "id": "={{ $json.id }}",
+            "full_name": "={{ $json.full_name }}",
+            "job_title": "={{ $json.job_title }}",
+            "linkedin_profile": "={{ $json.linkedin_profile }}",
+            "status": "={{ $json.status }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "id",
+              "displayName": "id",
+              "required": false,
+              "defaultMatch": true,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "full_name",
+              "displayName": "full_name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "job_title",
+              "displayName": "job_title",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "linkedin_profile",
+              "displayName": "linkedin_profile",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "status",
+              "displayName": "status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "70bcfd60-2a9c-42b3-9201-0efa28bf8006",
+      "name": "Append row in sheet",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        272,
+        -32
+      ]
+    }
+  ],
+  "connections": {
+    "When clicking 'Execute workflow'": {
+      "main": [
+        [
+          {
+            "node": "Execute a SQL query",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute a SQL query": {
+      "main": [
+        [
+          {
+            "node": "Append row in sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "20935e6e42b4060606f53eded764687ab4300d59de9aceb8bca4fbc698d1c11e"
+  }
+}
