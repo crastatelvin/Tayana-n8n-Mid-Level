@@ -1,0 +1,294 @@
+{
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "027c7c78-7005-4215-a5de-56c4725d8565",
+      "name": "When clicking 'Execute workflow'",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        -480,
+        -64
+      ]
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "YOUR_SPREADSHEET_ID",
+          "mode": "list",
+          "cachedResultName": "Product Partner - Companies ",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/YOUR_SPREADSHEET_ID/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 1831653667,
+          "mode": "list",
+          "cachedResultName": "Product Partner - Companies ",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/YOUR_SPREADSHEET_ID/edit#gid=1831653667"
+        },
+        "filtersUI": {
+          "values": [
+            {
+              "lookupColumn": "STATUS",
+              "lookupValue": "new"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "6baa9f9e-e364-40a3-8cdf-9298400db6c6",
+      "name": "Get row(s) in sheet",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        -256,
+        -64
+      ]
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "id": "c34ec356-1111-47ec-8352-c8fa99bfeae4",
+      "name": "Loop Over Items",
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        -16,
+        -64
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const item = $input.item;\nconst aiResponse = item.json.output || \"\";\n\nconst originalRow = $('Loop Over Items').item.json;\n\nlet partnerStatus = \"No\";\nlet evidence = \"Could not parse AI response cleanly.\";\n\nconst partnerMatch = aiResponse.match(/Partner Confirmation:\\s*(Yes|No)/i);\nconst reasoningMatch = aiResponse.match(/Reasoning:\\s*([\\s\\S]+)/i);\n\nif (partnerMatch && partnerMatch[1]) {\n    partnerStatus = partnerMatch[1].trim();\n}\n\nif (reasoningMatch && reasoningMatch[1]) {\n    evidence = reasoningMatch[1].trim();\n}\n\nreturn {\n    json: {\n        record_id: originalRow.ID || \"N/A\",\n        company_name: originalRow[\"COMPANY NAME\"] || \"Unknown\",\n        partner_confirmation: partnerStatus,\n        audit_evidence: evidence,\n        status: \"Processed\",\n        timestamp: new Date().toISOString().split('T')[0]\n    }\n};"
+      },
+      "id": "073ea264-3b7a-473c-9003-fd8e95db7835",
+      "name": "Code in JavaScript",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        592,
+        -64
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "YOUR_SPREADSHEET_ID",
+          "mode": "list",
+          "cachedResultName": "Product Partner - Companies ",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/YOUR_SPREADSHEET_ID/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 675143662,
+          "mode": "list",
+          "cachedResultName": "Sheet1",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/YOUR_SPREADSHEET_ID/edit#gid=675143662"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "ID": "={{ $json.record_id }}",
+            "COMPANY NAME": "={{ $json.company_name }}",
+            "PARTNER CONFIRMATION": "={{ $json.partner_confirmation }}",
+            "AUDIT EVIDENCE / SUMMARY": "={{ $json.audit_evidence }}",
+            "STATUS": "={{ $json.status }}",
+            "LOGGED DATE": "={{ $json.timestamp }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "ID",
+              "displayName": "ID",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "COMPANY NAME",
+              "displayName": "COMPANY NAME",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "PARTNER CONFIRMATION",
+              "displayName": "PARTNER CONFIRMATION",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "AUDIT EVIDENCE / SUMMARY",
+              "displayName": "AUDIT EVIDENCE / SUMMARY",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "STATUS",
+              "displayName": "STATUS",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "LOGGED DATE",
+              "displayName": "LOGGED DATE",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "b3cff481-f486-40d5-b5b7-c95c336e52e0",
+      "name": "Append row in sheet",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        800,
+        -64
+      ]
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=You are an AI agent designed to identify Partner Companies for a specific product: **Acumatica**.\n\nContext Data for the target company:\n- Website: {{ $json[\"COMPANY WEBSITE\"] }}\n- LinkedIn URL: {{ $json[\"LINKEDIN URL\"] }}\n\nAnalyze the provided LinkedIn and/or website content and determine whether the company is a Partner for Acumatica.\n\nInstructions:\n1. Search the About section on LinkedIn or the Company Website for any mention of \"Acumatica\".\n2. If the product name appears, confirm the company as a Partner.\n3. Always include the company's LinkedIn URL and Website in your output - even if empty or not mentioned.\n4. If no mention of \"Acumatica\" is found, return Partner Confirmation: No.\n\nOutput must always follow this exact format:\n\nPartner Confirmation: [Yes/No]\nReasoning: [Provide a brief 1-2 sentence explanation of where the confirmation was found or why it failed]",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        240,
+        -64
+      ],
+      "id": "4c439cb9-6cd3-4510-9db6-46dcfc88c1ee",
+      "name": "AI Agent"
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "value": "gpt-5-mini",
+          "mode": "list",
+          "cachedResultName": "gpt-5-mini"
+        },
+        "builtInTools": {},
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.3,
+      "position": [
+        240,
+        192
+      ],
+      "id": "0d64e2e8-12ea-4f8d-8b77-b7755237b8d6",
+      "name": "OpenAI Chat Model"
+    }
+  ],
+  "connections": {
+    "When clicking 'Execute workflow'": {
+      "main": [
+        [
+          {
+            "node": "Get row(s) in sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get row(s) in sheet": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Loop Over Items": {
+      "main": [
+        [],
+        [
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript": {
+      "main": [
+        [
+          {
+            "node": "Append row in sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Append row in sheet": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "20935e6e42b4060606f53eded764687ab4300d59de9aceb8bca4fbc698d1c11e"
+  }
+}
