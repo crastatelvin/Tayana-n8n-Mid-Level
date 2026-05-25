@@ -1,0 +1,315 @@
+{
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "b8263cd8-2b86-40d3-bcf8-59c80ab2e8a6",
+      "name": "When clicking 'Execute workflow'",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        -576,
+        -32
+      ]
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "YOUR_SPREADSHEET_ID",
+          "mode": "list",
+          "cachedResultName": "Acumatica Certification Processing Source Data",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/YOUR_SPREADSHEET_ID/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 1909161296,
+          "mode": "list",
+          "cachedResultName": "Acumatica Certification Processing Source Data",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/YOUR_SPREADSHEET_ID/edit#gid=1909161296"
+        },
+        "filtersUI": {
+          "values": [
+            {
+              "lookupColumn": "status",
+              "lookupValue": "new"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "c32b1632-cece-4b5b-8a00-0a006b3de744",
+      "name": "Get row(s) in sheet",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        -320,
+        -32
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Loop through all incoming items safely in \"Run Once for All Items\" mode\nreturn $input.all().map((item, index) => {\n    \n    // 1. Fetch exact paired original item directly using cross-node index parsing\n    let originalData = {};\n    try {\n        // Targets the exact incoming loop run matched with this item index\n        originalData = $('Loop Over Items').all()[index].json;\n    } catch (e) {\n        // Fallback safety layer to read from parent stream nodes\n        try {\n            originalData = $('Get row(s) in sheet').all()[index].json;\n        } catch (err) {\n            originalData = item.json;\n        }\n    }\n\n    const aiRawOutput = item.json.output || \"\";\n\n    // 2. Comprehensive Data Validation Check using resolved original source fields\n    if (!originalData.profile_url || !originalData.id) {\n        return {\n            json: {\n                id: originalData.id || `UNKNOWN-${index + 1}`,\n                profile_url: originalData.profile_url || \"\",\n                company_name: originalData.company_name || \"N/A\",\n                headline: originalData.headline || \"N/A\",\n                certification_level: \"N/A\",\n                status: \"failed\",\n                error_log: \"Missing required profile fields from source sheet\",\n                processed_at: new Date().toISOString()\n            },\n            pairedItem: { index: index }\n        };\n    }\n\n    // 3. Parse and extract category from AI Response safely\n    let aiOutput = \"Unknown\";\n    if (aiRawOutput) {\n        let cleanText = aiRawOutput;\n        \n        // Extract inner values if AI returned a JSON string wrapper\n        try {\n            if (cleanText.includes('{')) {\n                const parsed = JSON.parse(cleanText.substring(cleanText.indexOf('{'), cleanText.lastIndexOf('}') + 1));\n                if (parsed.category) {\n                    cleanText = parsed.category;\n                } else if (parsed.certification_level) {\n                    cleanText = parsed.certification_level;\n                }\n            }\n        } catch (e) {\n            // Keep original text format if parsing hits a dead end\n        }\n\n        const matchText = cleanText.toLowerCase();\n        if (matchText.includes(\"gold\")) aiOutput = \"Gold\";\n        else if (matchText.includes(\"silver\")) aiOutput = \"Silver\";\n        else if (matchText.includes(\"authorized\")) aiOutput = \"Authorized\";\n        else if (matchText.includes(\"n/a\") || matchText.includes(\"unknown\")) aiOutput = \"Unknown\";\n    }\n\n    // 4. Construct Perfect Structured Output pairing unique items together \n    return {\n        json: {\n            id: originalData.id,\n            profile_url: originalData.profile_url,\n            company_name: originalData.company_name || \"N/A\",\n            headline: originalData.headline || \"N/A\",\n            certification_level: aiOutput,\n            status: \"processed\",\n            error_log: \"None\",\n            processed_at: new Date().toISOString()\n        },\n        pairedItem: { index: index }\n    };\n});"
+      },
+      "id": "f249347b-5091-42b4-9263-20f0bb3cfe9c",
+      "name": "Code in JavaScript",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        608,
+        -48
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "YOUR_SPREADSHEET_ID",
+          "mode": "list",
+          "cachedResultName": "Acumatica Certification Processing Source Data",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/YOUR_SPREADSHEET_ID/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 392509474,
+          "mode": "list",
+          "cachedResultName": "Sheet1",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/YOUR_SPREADSHEET_ID/edit#gid=392509474"
+        },
+        "columns": {
+          "mappingMode": "autoMapInputData",
+          "value": {},
+          "matchingColumns": [
+            "id"
+          ],
+          "schema": [
+            {
+              "id": "id",
+              "displayName": "id",
+              "required": false,
+              "defaultMatch": true,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "profile_url",
+              "displayName": "profile_url",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "company_name",
+              "displayName": "company_name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "headline",
+              "displayName": "headline",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "certification_level",
+              "displayName": "certification_level",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "status",
+              "displayName": "status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "error_log",
+              "displayName": "error_log",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "processed_at",
+              "displayName": "processed_at",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "2e00b0cb-00c3-47cc-a890-5269e575b36d",
+      "name": "Append row in sheet",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        848,
+        -48
+      ]
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=You are an AI classification assistant trained to analyze professional job titles, partner credentials, and LinkedIn-style headlines.\n\nYour task is to categorize each entry into one of the following categories based on partner tier criteria and competency:\n\nCategories:\n\nGold: Roles involving tier-one partnership credentials, advanced mastery certifications, or high-level enterprise solutions execution.\n\nSilver: Roles focused on intermediate tier-two partner qualifications, standard certified consulting tracks, or regional deployments.\n\nAuthorized: Roles indicating entry-level certified baseline alignment, registered status, or basic system onboarding tracks.\n\nUnknown / N/A: Entries where no distinct certification metrics, company credentials, or valid profile attributes can be verified.\n\nInput Details:\n\nlinkedin url = {{ $json.profile_url }}\nheadline = {{ $json.headline }}\ncompany = {{ $json.company_name }}\nlocation = {{ $json.location_name }}\n\nInstructions:\n\nRead the provided headline, company, and other contextual details.\n\nAssign the most appropriate single category label (Gold, Silver, Authorized, Unknown, or N/A).\n\nIf uncertain, choose the closest fit based on primary partner footprints.\n\n\u2705 Example Outputs\n\nExample 1:\n{\n  \"linkedin_url\": \"https://www.linkedin.com/in/johndoe/\",\n  \"company\": \"Enterprise Tech Corp\",\n  \"headline\": \"Lead ERP Architect | Gold Certified Specialist\",\n  \"location\": \"Mumbai, India\",\n  \"category\": \"Gold\"\n}\n\nExample 2:\n{\n  \"linkedin_url\": \"https://www.linkedin.com/in/aanchaltech/\",\n  \"company\": \"Midmarket Integrators\",\n  \"headline\": \"Functional Consultant | Silver Competency Track\",\n  \"location\": \"Bengaluru, India\",\n  \"category\": \"Silver\"\n}",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        208,
+        -48
+      ],
+      "id": "537b2bf6-2c0e-43eb-bf08-26c9f4066220",
+      "name": "AI Agent"
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "value": "gpt-5-mini",
+          "mode": "list",
+          "cachedResultName": "gpt-5-mini"
+        },
+        "builtInTools": {},
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.3,
+      "position": [
+        208,
+        176
+      ],
+      "id": "f822b259-d9c9-4d27-a894-60ba8a8e630f",
+      "name": "OpenAI Chat Model"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        -80,
+        -32
+      ],
+      "id": "66ef121d-f394-4252-b211-259294e8e7a2",
+      "name": "Loop Over Items"
+    }
+  ],
+  "connections": {
+    "When clicking 'Execute workflow'": {
+      "main": [
+        [
+          {
+            "node": "Get row(s) in sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get row(s) in sheet": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript": {
+      "main": [
+        [
+          {
+            "node": "Append row in sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Append row in sheet": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Loop Over Items": {
+      "main": [
+        [],
+        [
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "20935e6e42b4060606f53eded764687ab4300d59de9aceb8bca4fbc698d1c11e"
+  }
+}
