@@ -1,0 +1,271 @@
+{
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "220b59e0-2ebf-412e-b84c-54fb6ff929b6",
+      "name": "When clicking 'Execute workflow'",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        -576,
+        -208
+      ]
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "YOUR_SPREADSHEET_ID",
+          "mode": "list",
+          "cachedResultName": "Persona Bucket Classific",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/YOUR_SPREADSHEET_ID/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 493453968,
+          "mode": "list",
+          "cachedResultName": "USA-5002 - Designation - Persona Bucket Classific...",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/YOUR_SPREADSHEET_ID/edit#gid=493453968"
+        },
+        "options": {}
+      },
+      "id": "deb0e28e-b2f6-4b4d-9358-548fb3e18192",
+      "name": "Get row(s) in sheet",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        -352,
+        -208
+      ]
+    },
+    {
+      "parameters": {
+        "batchSize": 5,
+        "options": {}
+      },
+      "id": "96122ade-eb47-4e28-9fd9-332604f54761",
+      "name": "Loop Over Items",
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        -128,
+        -208
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// n8n Code Node\n// Cleans and standardizes AI classification output\n\nconst cleaned = [];\n\nfor (const item of items) {\n  try {\n    // Parse if AI returned JSON as string\n    let output = item.json.output || item.json;\n    \n    if (typeof output === 'string') {\n      output = JSON.parse(output);\n    }\n    \n    // Add the cleaned, flattened object to our results array\n    cleaned.push({\n      json: {\n        linkedin_url: output.linkedin_url || '',\n        name: output.name || '',\n        headline: output.headline || '',\n        location: output.location || '',\n        category: output.category || ''\n      }\n    });\n    \n  } catch (error) {\n    // Fallback if parsing fails to avoid crashing the whole loop\n    cleaned.push({\n      json: {\n        error: \"Failed to parse AI output\",\n        raw: item.json.output\n      }\n    });\n  }\n}\n\nreturn cleaned;"
+      },
+      "id": "b696f157-041f-4da8-aabb-c94ea257fa80",
+      "name": "Code in JavaScript",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        560,
+        -240
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "YOUR_SPREADSHEET_ID",
+          "mode": "list",
+          "cachedResultName": "Persona Bucket Classific",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/YOUR_SPREADSHEET_ID/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 1029685283,
+          "mode": "list",
+          "cachedResultName": "Sheet1",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/YOUR_SPREADSHEET_ID/edit#gid=1029685283"
+        },
+        "columns": {
+          "mappingMode": "autoMapInputData",
+          "value": {},
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "linkedin_url",
+              "displayName": "linkedin_url",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "name",
+              "displayName": "name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "headline",
+              "displayName": "headline",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "location",
+              "displayName": "location",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "category",
+              "displayName": "category",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "14389b54-d63a-4330-b8e9-3b4ea84f3c8c",
+      "name": "Append row in sheet",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        816,
+        -208
+      ]
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=You are an AI classification assistant trained to analyze professional job titles and LinkedIn-style headlines.\n\nYour task is to categorize each entry into one of the following categories based on role type and responsibility:\n\nCategories:\n\nSales: Roles involving business development, client acquisition, revenue generation, partnerships, or marketing outreach.\n\nTechnical: Roles focused on engineering, IT, product development, data, software, or system implementation.\n\nLeadership: Senior management or executive roles overseeing strategy, teams, or departments (e.g., CEO, Director, VP, Head of).\n\nFunctional / Operations: Roles related to HR, finance, supply chain, support, project coordination, or administration.\n\nInput Details:\n\nlinkedin url = {{ $json.profile_url }}\nheadline = {{ $json.headline }}\nname = {{ $json.original_full_name }}\nlocation = {{ $json.location_name }}\n\nInstructions:\n\nRead the provided headline, name, and other contextual details.\n\nAssign the most appropriate single category label (Sales, Technical, Leadership, or Functional).\n\nIf uncertain, choose the closest fit based on primary responsibility.\n\nEnsure the output includes all input fields plus the final category.\n\nOutput Format Example:\n\n{\n  \"linkedin_url\": \"{{ $json.profile_url }}\",\n  \"name\": \"{{ $json.original_full_name }}\",\n  \"headline\": \"{{ $json.headline }}\",\n  \"location\": \"{{ $json.location_name }}\",\n  \"category\": \"Leadership\"\n}\n\nExample Outputs\n\nExample 1:\n\n{\n  \"linkedin_url\": \"https://www.linkedin.com/in/johndoe/\",\n  \"name\": \"John Doe\",\n  \"headline\": \"VP of Marketing and Sales | Driving Growth at ABC Corp\",\n  \"location\": \"Mumbai, India\",\n  \"category\": \"Leadership\"\n}\n\nExample 2:\n\n{\n  \"linkedin_url\": \"https://www.linkedin.com/in/aanchaltech/\",\n  \"name\": \"Aanchal Verma\",\n  \"headline\": \"Full Stack Developer | Building Scalable Web Applications\",\n  \"location\": \"Bangalore, India\",\n  \"category\": \"Technical\"\n}",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        160,
+        -240
+      ],
+      "id": "94f6ecde-4d37-42db-ba25-548096c9fd00",
+      "name": "AI Agent"
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "value": "gpt-5-mini",
+          "mode": "list",
+          "cachedResultName": "gpt-5-mini"
+        },
+        "builtInTools": {},
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.3,
+      "position": [
+        160,
+        48
+      ],
+      "id": "58ce31a2-9ff8-4682-aeae-302b494835e0",
+      "name": "OpenAI Chat Model"
+    }
+  ],
+  "connections": {
+    "When clicking 'Execute workflow'": {
+      "main": [
+        [
+          {
+            "node": "Get row(s) in sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get row(s) in sheet": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Loop Over Items": {
+      "main": [
+        [],
+        [
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript": {
+      "main": [
+        [
+          {
+            "node": "Append row in sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Append row in sheet": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "20935e6e42b4060606f53eded764687ab4300d59de9aceb8bca4fbc698d1c11e"
+  }
+}
